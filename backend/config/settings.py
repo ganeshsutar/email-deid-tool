@@ -33,6 +33,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = list(
     filter(None, os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(","))
 )
+ALLOWED_HOSTS += ["healthcheck.railway.app"]
 
 
 # Application definition
