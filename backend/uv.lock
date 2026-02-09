@@ -23,7 +23,6 @@ dependencies = [
     { name = "dj-database-url" },
     { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "django-admin" },
     { name = "django-cors-headers" },
     { name = "djangorestframework" },
     { name = "gunicorn" },
@@ -36,7 +35,6 @@ dependencies = [
 requires-dist = [
     { name = "dj-database-url", specifier = ">=2.3.0" },
     { name = "django", specifier = ">=5.2.11" },
-    { name = "django-admin", specifier = ">=2.0.2" },
     { name = "django-cors-headers", specifier = ">=4.9.0" },
     { name = "djangorestframework", specifier = ">=3.16.1" },
     { name = "gunicorn", specifier = ">=23.0.0" },
@@ -93,19 +91,6 @@ wheels = [
 ]
 
 [[package]]
-name = "django-admin"
-version = "2.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django-excel-response2" },
-    { name = "django-six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/87/85/13712a5b136636528b69ff99aecc7fa13d994299c8f3458024e90a2d3917/django-admin-2.0.2.tar.gz", hash = "sha256:43c9f94ca5ad498789c0282691931c609c8e26db61aeb49ae8ad90d15b80cb75", size = 6387, upload-time = "2023-02-03T06:51:40.447Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/0e/e8077a50b057c5f62c8eea8a1bde95d83c48be0f8aaef886585519bebb5b/django_admin-2.0.2-py2.py3-none-any.whl", hash = "sha256:a92f9fb21f63edabb5db9030f36b62c6c16a0187183e7e7de4142aee4472b70f", size = 7624, upload-time = "2023-02-03T06:51:38.633Z" },
-]
-
-[[package]]
 name = "django-cors-headers"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -117,28 +102,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/21/39/55822b15b7ec87410f34cd16ce04065ff390e50f9e29f31d6d116fc80456/django_cors_headers-4.9.0.tar.gz", hash = "sha256:fe5d7cb59fdc2c8c646ce84b727ac2bca8912a247e6e68e1fb507372178e59e8", size = 21458, upload-time = "2025-09-18T10:40:52.326Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/30/d8/19ed1e47badf477d17fb177c1c19b5a21da0fd2d9f093f23be3fb86c5fab/django_cors_headers-4.9.0-py3-none-any.whl", hash = "sha256:15c7f20727f90044dcee2216a9fd7303741a864865f0c3657e28b7056f61b449", size = 12809, upload-time = "2025-09-18T10:40:50.843Z" },
-]
-
-[[package]]
-name = "django-excel-response2"
-version = "3.0.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django-six" },
-    { name = "excel-base" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/e0/e1745ca77f776f330bb0417f2c1f3a90047ab4a55a21b3dbf391562e0e08/django-excel-response2-3.0.6.tar.gz", hash = "sha256:404b28818a262153559155239b719ba50e3c09484d638acdaadadfb309fc1b56", size = 4990, upload-time = "2023-07-19T08:00:10.314Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/66/44986943e506a3d43de4a8515e7c33bf9dbc43a04707097e8fd17aa9792f/django_excel_response2-3.0.6-py2.py3-none-any.whl", hash = "sha256:fe0c54207caf7efefcad689427bffad9209808e6102becb07967d5f8c92b82c7", size = 4854, upload-time = "2023-07-19T08:00:08.129Z" },
-]
-
-[[package]]
-name = "django-six"
-version = "1.0.5"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9f/76/9a24743189f5fcb8a937c30dbeea29e376c075be28b8d0cfa492c44e506f/django-six-1.0.5.tar.gz", hash = "sha256:9ad505d101ac3ce5a59d22693fcf77b4b19764020e0c7edfe939d220cafbf3a9", size = 2536, upload-time = "2023-02-03T06:40:55.073Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/ef/ae4823f4f233f57fc011711f1291b534f2b46342ecc05a313a3e6076c041/django_six-1.0.5-py2.py3-none-any.whl", hash = "sha256:50816cf52e16814dff58eacd4883d9e5a43be37e53dcbd99323d1139ff89f73b", size = 2655, upload-time = "2023-02-03T06:40:53.025Z" },
 ]
 
 [[package]]
@@ -155,20 +118,6 @@ wheels = [
 ]
 
 [[package]]
-name = "excel-base"
-version = "1.0.4"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "screen" },
-    { name = "timeconvert" },
-    { name = "xlwt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7f/b6/3573d62b9e9ffe9c8e97cc73ad880ce442e1739edac792f28f990502ac5f/excel-base-1.0.4.tar.gz", hash = "sha256:5b3f2ead44a1b35ed3099e127fc3de9d6eb453bba9acc1058af215e21b4ee20c", size = 4773, upload-time = "2023-02-28T10:27:35.509Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/95/bf45ae25b10a90327a9c202a5a408c14b9c3fb97afc415921f66db1e9ef0/excel_base-1.0.4-py2.py3-none-any.whl", hash = "sha256:3cdd3ef3366422eda12c7a72157053c8cbd06bcfe63a9280bc443ed21186372f", size = 5203, upload-time = "2023-02-28T10:27:33.598Z" },
-]
-
-[[package]]
 name = "gunicorn"
 version = "25.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -178,15 +127,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f3/e5/e1d2225d2b75fe4988821715d2c526fdf7b39f4a7260aa7e2bb4b25ec65c/gunicorn-25.0.3.tar.gz", hash = "sha256:b53a7fff1a07b825b962af320554de44ae77a26abfa373711ff3f83d57d3506d", size = 9702357, upload-time = "2026-02-07T16:53:52.72Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5e/84/117f39896ded517149be72d16c02252885690e9b0d1b84281944928f61aa/gunicorn-25.0.3-py3-none-any.whl", hash = "sha256:aca364c096c81ca11acd4cede0aaeea91ba76ca74e2c0d7f879154db9d890f35", size = 171728, upload-time = "2026-02-07T16:53:49.546Z" },
-]
-
-[[package]]
-name = "isoweek"
-version = "1.3.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9a/79/68c68f92d8d55b3b790224bdba879a8fe77756a42c0b719e2e695756eb34/isoweek-1.3.3.tar.gz", hash = "sha256:73f3f7bac443e05a3ab45c32a72048b0c4f26d53d81462ec4b142c7581d3ffe8", size = 6847, upload-time = "2017-01-04T15:16:31.072Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/d4/fe7e2637975c476734fcbf53776e650a29680194eb0dd21dbdc020ca92de/isoweek-1.3.3-py2.py3-none-any.whl", hash = "sha256:d3324c497d97f1534669de225ec877964222e4cc773a4a99063086f7a4e342b6", size = 7138, upload-time = "2017-01-04T15:16:33.969Z" },
 ]
 
 [[package]]
@@ -268,18 +208,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-dateutil"
-version = "2.9.0.post0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
 name = "python-dotenv"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -289,41 +217,12 @@ wheels = [
 ]
 
 [[package]]
-name = "screen"
-version = "1.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a4/d2/68dacd66f28618462650e475f29663eb1f97cecdc3cf8f0881e52f425a3a/screen-1.0.1.tar.gz", hash = "sha256:aebfe90de7b8a646d4f3c2b214bd6ffa2ab12ed9d0b14c08620d9c7f7b8ee670", size = 8631, upload-time = "2016-07-15T10:06:37.414Z" }
-
-[[package]]
-name = "six"
-version = "1.17.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
-]
-
-[[package]]
 name = "sqlparse"
 version = "0.5.5"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/90/76/437d71068094df0726366574cf3432a4ed754217b436eb7429415cf2d480/sqlparse-0.5.5.tar.gz", hash = "sha256:e20d4a9b0b8585fdf63b10d30066c7c94c5d7a7ec47c889a2d83a3caa93ff28e", size = 120815, upload-time = "2025-12-19T07:17:45.073Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/4b/359f28a903c13438ef59ebeee215fb25da53066db67b305c125f1c6d2a25/sqlparse-0.5.5-py3-none-any.whl", hash = "sha256:12a08b3bf3eec877c519589833aed092e2444e68240a3577e8e26148acc7b1ba", size = 46138, upload-time = "2025-12-19T07:17:46.573Z" },
-]
-
-[[package]]
-name = "timeconvert"
-version = "3.0.13"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "isoweek" },
-    { name = "python-dateutil" },
-    { name = "tzlocal" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/3e/6daa9585a1fa17c25d854e4c6bd2ae53b2a075c081416e39d80ff29957ca/TimeConvert-3.0.13.tar.gz", hash = "sha256:1f4ca99a7e88afe6e19d2d7578078555288055e362f0d170a1e35a8dadf38f03", size = 18398, upload-time = "2023-01-03T09:08:53.371Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/1b/17a8ec28c57b695ce910221a48dbe2b4ac145981f6e97c45d1edc441532d/TimeConvert-3.0.13-py2.py3-none-any.whl", hash = "sha256:9fa7f2eb43c17b8636171c98a8f599d9308b003395322f11cd4cdaba68cdc89a", size = 19534, upload-time = "2023-01-03T09:08:51.123Z" },
 ]
 
 [[package]]
@@ -345,31 +244,10 @@ wheels = [
 ]
 
 [[package]]
-name = "tzlocal"
-version = "5.3.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8b/2e/c14812d3d4d9cd1773c6be938f89e5735a1f11a9f184ac3639b93cef35d5/tzlocal-5.3.1.tar.gz", hash = "sha256:cceffc7edecefea1f595541dbd6e990cb1ea3d19bf01b2809f362a03dd7921fd", size = 30761, upload-time = "2025-03-05T21:17:41.549Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/14/e2a54fabd4f08cd7af1c07030603c3356b74da07f7cc056e600436edfa17/tzlocal-5.3.1-py3-none-any.whl", hash = "sha256:eb1a66c3ef5847adf7a834f1be0800581b683b5608e74f86ecbcef8ab91bb85d", size = 18026, upload-time = "2025-03-05T21:17:39.857Z" },
-]
-
-[[package]]
 name = "whitenoise"
 version = "6.11.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/15/95/8c81ec6b6ebcbf8aca2de7603070ccf37dbb873b03f20708e0f7c1664bc6/whitenoise-6.11.0.tar.gz", hash = "sha256:0f5bfce6061ae6611cd9396a8231e088722e4fc67bc13a111be74c738d99375f", size = 26432, upload-time = "2025-09-18T09:16:10.995Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6c/e9/4366332f9295fe0647d7d3251ce18f5615fbcb12d02c79a26f8dba9221b3/whitenoise-6.11.0-py3-none-any.whl", hash = "sha256:b2aeb45950597236f53b5342b3121c5de69c8da0109362aee506ce88e022d258", size = 20197, upload-time = "2025-09-18T09:16:09.754Z" },
-]
-
-[[package]]
-name = "xlwt"
-version = "1.3.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/06/97/56a6f56ce44578a69343449aa5a0d98eefe04085d69da539f3034e2cd5c1/xlwt-1.3.0.tar.gz", hash = "sha256:c59912717a9b28f1a3c2a98fd60741014b06b043936dcecbc113eaaada156c88", size = 153929, upload-time = "2017-08-22T06:47:16.498Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/48/def306413b25c3d01753603b1a222a011b8621aed27cd7f89cbc27e6b0f4/xlwt-1.3.0-py2.py3-none-any.whl", hash = "sha256:a082260524678ba48a297d922cc385f58278b8aa68741596a87de01a9c628b2e", size = 99981, upload-time = "2017-08-22T06:47:15.281Z" },
 ]
