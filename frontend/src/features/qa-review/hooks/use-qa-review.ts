@@ -29,7 +29,7 @@ export function useQAReview(jobId: string) {
   const [annotationNotes, setAnnotationNotes] = useState<Map<string, string>>(new Map());
   const [modifications, setModifications] = useState<QAModification[]>([]);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
-  const [activeRightTab, setActiveRightTab] = useState("annotations");
+  const [activeRightTab, setActiveRightTab] = useState("preview");
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string>();
   const [isDirty, setIsDirty] = useState(false);
   const [contentViewMode, setContentViewMode] = useState<ContentViewMode>(ContentViewMode.DECODED);
@@ -234,6 +234,45 @@ export function useQAReview(jobId: string) {
     [],
   );
 
+  const reassignTag = useCallback((annotationId: string, newTag: string) => {
+    setCurrentAnnotations((prev) =>
+      prev.map((ann) => {
+        if (ann.id !== annotationId) return ann;
+        return { ...ann, tag: newTag };
+      }),
+    );
+    setAnnotationStatuses((prev) => {
+      const next = new Map(prev);
+      if (prev.get(annotationId) !== AnnotationQAStatus.QA_ADDED) {
+        next.set(annotationId, AnnotationQAStatus.OK);
+      }
+      return next;
+    });
+    setModifications((prev) => [
+      ...prev,
+      { type: "modified", annotationId, description: `Reassigned tag to ${newTag}` },
+    ]);
+    setIsDirty(true);
+  }, []);
+
+  const getExistingTagsForClass = useCallback(
+    (className: string, excludeTag: string): { tag: string; sampleText: string }[] => {
+      const tagMap = new Map<string, string>();
+      for (const ann of currentAnnotations) {
+        if (ann.className !== className) continue;
+        if (ann.tag === excludeTag) continue;
+        if (!tagMap.has(ann.tag)) {
+          tagMap.set(ann.tag, ann.originalText);
+        }
+      }
+      return Array.from(tagMap.entries()).map(([tag, sampleText]) => ({
+        tag,
+        sampleText,
+      }));
+    },
+    [currentAnnotations],
+  );
+
   const toggleEditMode = useCallback(() => {
     setEditModeEnabled((prev) => !prev);
     setIsDirty(true);
@@ -336,6 +375,8 @@ export function useQAReview(jobId: string) {
     editAnnotation,
     deleteAnnotation,
     addAnnotation,
+    reassignTag,
+    getExistingTagsForClass,
     toggleEditMode,
     setAnnotationNote,
     getModificationSummary,

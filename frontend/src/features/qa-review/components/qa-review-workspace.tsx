@@ -26,6 +26,7 @@ import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
 import { RawContentViewer } from "@/components/raw-content-viewer";
 import { useSetHeaderSlot } from "@/lib/header-slot";
+import { TagReassignmentDialog } from "@/features/annotations/components/tag-reassignment-dialog";
 import { AcceptDialog } from "./accept-dialog";
 import { AnnotationActionToolbar } from "./annotation-action-toolbar";
 import { AnnotationsReviewListTab } from "./annotations-review-list-tab";
@@ -45,6 +46,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [toolbarAnnotation, setToolbarAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  const [tagReassignAnnotation, setTagReassignAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
   const [classPopupOpen, setClassPopupOpen] = useState(false);
   const [classPopupPosition, setClassPopupPosition] = useState({ x: 0, y: 0 });
   const [pendingTextSelection, setPendingTextSelection] = useState<{
@@ -304,12 +306,17 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               className="flex h-full flex-col"
             >
               <TabsList className="mx-2 mt-2 w-fit">
+                <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="annotations" data-testid="annotations-tab-trigger">
                   Annotations ({review.currentAnnotations.length})
                 </TabsTrigger>
                 <TabsTrigger value="email">Email</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
+              <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
+                {review.rawContent && (
+                  <EmailPreview rawContent={review.rawContent} annotations={review.currentAnnotations} />
+                )}
+              </TabsContent>
               <TabsContent value="annotations" className="flex-1 min-h-0 m-0">
                 <AnnotationsReviewListTab
                   annotations={review.currentAnnotations}
@@ -330,11 +337,6 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
                   <EmailViewer rawContent={review.rawContent} />
                 )}
               </TabsContent>
-              <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
-                {review.rawContent && (
-                  <EmailPreview rawContent={review.rawContent} annotations={review.currentAnnotations} />
-                )}
-              </TabsContent>
             </Tabs>
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -350,6 +352,8 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
           onMarkOK={() => review.markOK(toolbarAnnotation.id)}
           onFlag={() => review.flagAnnotation(toolbarAnnotation.id)}
           onEdit={() => handleToolbarEdit(toolbarAnnotation.id)}
+          onChangeTag={review.editModeEnabled ? () => setTagReassignAnnotation(toolbarAnnotation) : undefined}
+          hasOtherTags={review.editModeEnabled ? review.getExistingTagsForClass(toolbarAnnotation.className, toolbarAnnotation.tag).length > 0 : false}
           onDelete={() => review.deleteAnnotation(toolbarAnnotation.id)}
           onClose={() => setToolbarAnnotation(null)}
         />
@@ -376,6 +380,20 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
           classes={annotationClasses}
           onSelect={handleEditClassSelect}
           onClose={() => setEditingAnnotationId(null)}
+        />
+      )}
+
+      {/* Tag reassignment dialog */}
+      {tagReassignAnnotation && (
+        <TagReassignmentDialog
+          open={!!tagReassignAnnotation}
+          currentTag={tagReassignAnnotation.tag}
+          availableTags={review.getExistingTagsForClass(tagReassignAnnotation.className, tagReassignAnnotation.tag)}
+          onSelect={(tag) => {
+            review.reassignTag(tagReassignAnnotation.id, tag);
+            setTagReassignAnnotation(null);
+          }}
+          onClose={() => setTagReassignAnnotation(null)}
         />
       )}
 

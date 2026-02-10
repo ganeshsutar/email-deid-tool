@@ -263,10 +263,10 @@ class Command(BaseCommand):
             type_match = TYPE_RE.match(entity_type)
             if type_match:
                 class_name = type_match.group(1).lower()
-                tag = entity_type.lower()
+                tag = f"[{entity_type.lower()}]"
             else:
                 class_name = entity_type.lower()
-                tag = entity_type.lower()
+                tag = f"[{entity_type.lower()}]"
 
             # Pre-check: validate offsets against raw content (confirms JSON data)
             raw_text = raw_stripped[start:end]

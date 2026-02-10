@@ -67,7 +67,7 @@ export function useAnnotationWorkspace(jobId: string) {
   const [classPopupOpen, setClassPopupOpen] = useState(false);
   const [classPopupPosition, setClassPopupPosition] = useState({ x: 0, y: 0 });
   const [sameValuePrompt, setSameValuePrompt] = useState<SameValuePrompt | null>(null);
-  const [activeRightTab, setActiveRightTab] = useState("annotations");
+  const [activeRightTab, setActiveRightTab] = useState("preview");
   const [isDirty, setIsDirty] = useState(false);
   const [contentViewMode, setContentViewMode] = useState<ContentViewMode>(ContentViewMode.DECODED);
   const [sameValueLinkingEnabled, setSameValueLinkingEnabled] = useState(true);

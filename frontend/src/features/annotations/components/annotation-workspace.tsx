@@ -258,12 +258,17 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
               className="flex h-full flex-col"
             >
               <TabsList className="mx-2 mt-2 w-fit">
+                <TabsTrigger value="preview">Preview</TabsTrigger>
                 <TabsTrigger value="annotations" data-testid="annotations-list-tab">
                   Annotations ({workspace.annotations.length})
                 </TabsTrigger>
                 <TabsTrigger value="email" data-testid="email-preview-tab">Email</TabsTrigger>
-                <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
+              <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
+                {workspace.rawContent && (
+                  <EmailPreview rawContent={workspace.rawContent} annotations={workspace.annotations} />
+                )}
+              </TabsContent>
               <TabsContent value="annotations" className="flex-1 min-h-0 m-0">
                 <AnnotationsListTab
                   annotations={workspace.annotations}
@@ -276,11 +281,6 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
               <TabsContent value="email" className="flex-1 min-h-0 m-0 overflow-auto">
                 {workspace.rawContent && (
                   <EmailViewer rawContent={workspace.rawContent} />
-                )}
-              </TabsContent>
-              <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
-                {workspace.rawContent && (
-                  <EmailPreview rawContent={workspace.rawContent} annotations={workspace.annotations} />
                 )}
               </TabsContent>
             </Tabs>

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Check, Flag, Pencil, Trash2 } from "lucide-react";
+import { Check, Flag, Link2, Pencil, Trash2 } from "lucide-react";
 import type { WorkspaceAnnotation } from "@/types/models";
 import type { AnnotationQAStatus } from "@/types/enums";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ interface AnnotationActionToolbarProps {
   onMarkOK: () => void;
   onFlag: () => void;
   onEdit: () => void;
+  onChangeTag?: () => void;
+  hasOtherTags?: boolean;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -24,6 +26,8 @@ export function AnnotationActionToolbar({
   onMarkOK,
   onFlag,
   onEdit,
+  onChangeTag,
+  hasOtherTags,
   onDelete,
   onClose,
 }: AnnotationActionToolbarProps) {
@@ -108,6 +112,17 @@ export function AnnotationActionToolbar({
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
+              {hasOtherTags && onChangeTag && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => { onChangeTag(); onClose(); }}
+                  title="Link to existing tag"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"

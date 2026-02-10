@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 interface AnnotationsListTabProps {
   annotations: WorkspaceAnnotation[];
@@ -32,7 +32,7 @@ export function AnnotationsListTab({
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <Table aria-label="Annotations list">
           <TableHeader>
             <TableRow>
@@ -122,7 +122,7 @@ export function AnnotationsListTab({
             )}
           </TableBody>
         </Table>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
