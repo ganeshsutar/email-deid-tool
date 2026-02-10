@@ -10,7 +10,6 @@ export function mapJob(data: Record<string, unknown>): Job {
     id: data.id as string,
     dataset: data.dataset as string,
     fileName: data.file_name as string,
-    filePath: data.file_path as string,
     status: data.status as Job["status"],
     assignedAnnotator: data.assigned_annotator
       ? mapUser(data.assigned_annotator as Record<string, unknown>)

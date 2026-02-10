@@ -86,6 +86,7 @@ class AcceptAnnotationSerializer(serializers.Serializer):
     def validate_modified_annotations(self, value):
         if value is None:
             return value
+        min_length = self.context.get("min_annotation_length", 1)
         for i, ann in enumerate(value):
             required_fields = [
                 "annotation_class",
@@ -102,6 +103,15 @@ class AcceptAnnotationSerializer(serializers.Serializer):
             if ann["start_offset"] >= ann["end_offset"]:
                 raise serializers.ValidationError(
                     f"Annotation {i}: start_offset must be less than end_offset."
+                )
+            stripped = ann["original_text"].strip()
+            if not stripped:
+                raise serializers.ValidationError(
+                    f"Annotation {i}: original_text cannot be empty or blank."
+                )
+            if len(stripped) < min_length:
+                raise serializers.ValidationError(
+                    f"Annotation {i}: original_text must be at least {min_length} characters (got {len(stripped)})."
                 )
         return value
 

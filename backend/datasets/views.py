@@ -1,8 +1,8 @@
+import hashlib
+import io
 import os
-import shutil
 import zipfile
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponse
@@ -81,13 +81,6 @@ class DatasetViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Delete media files
-        dataset_dir = os.path.join(
-            settings.MEDIA_ROOT, "datasets", str(dataset.id)
-        )
-        if os.path.isdir(dataset_dir):
-            shutil.rmtree(dataset_dir)
-
         dataset.delete()  # CASCADE deletes jobs
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -102,44 +95,37 @@ class DatasetViewSet(ViewSet):
         dataset = Dataset.objects.create(
             name=name,
             uploaded_by=request.user,
-            status=Dataset.Status.UPLOADING,
+            status=Dataset.Status.EXTRACTING,
         )
 
-        dataset_dir = os.path.join(
-            settings.MEDIA_ROOT, "datasets", str(dataset.id)
-        )
-        os.makedirs(dataset_dir, exist_ok=True)
-
-        # Save zip file
-        zip_path = os.path.join(dataset_dir, file.name)
-        with open(zip_path, "wb") as dest:
-            for chunk in file.chunks():
-                dest.write(chunk)
-
-        dataset.file_path = zip_path
-        dataset.status = Dataset.Status.EXTRACTING
-        dataset.save(update_fields=["file_path", "status"])
+        # Read ZIP into memory buffer
+        zip_buffer = io.BytesIO()
+        for chunk in file.chunks():
+            zip_buffer.write(chunk)
 
         # Extract inline
-        self._extract_dataset(dataset, zip_path, dataset_dir)
+        self._extract_dataset(dataset, zip_buffer)
 
         return Response(
             DatasetDetailSerializer(dataset).data,
             status=status.HTTP_201_CREATED,
         )
 
-    def _extract_dataset(self, dataset, zip_path, dataset_dir):
+    def _extract_dataset(self, dataset, zip_buffer):
         try:
-            if not zipfile.is_zipfile(zip_path):
+            zip_buffer.seek(0)
+            if not zipfile.is_zipfile(zip_buffer):
                 dataset.status = Dataset.Status.FAILED
                 dataset.error_message = "Uploaded file is not a valid zip archive."
                 dataset.save(update_fields=["status", "error_message"])
                 return
 
+            zip_buffer.seek(0)
             seen_names = {}
-            jobs = []
+            candidates = []
+            seen_hashes_in_zip = set()
 
-            with zipfile.ZipFile(zip_path, "r") as zf:
+            with zipfile.ZipFile(zip_buffer, "r") as zf:
                 for entry in zf.namelist():
                     # Skip directories and non-.eml files
                     if entry.endswith("/") or not entry.lower().endswith(".eml"):
@@ -158,25 +144,54 @@ class DatasetViewSet(ViewSet):
                     else:
                         seen_names[base_name] = 0
 
-                    dest_path = os.path.join(dataset_dir, base_name)
+                    # Read .eml content from ZIP and decode
+                    raw_bytes = zf.read(entry)
+                    content_hash = hashlib.sha256(raw_bytes).hexdigest()
 
-                    # Extract file
-                    with zf.open(entry) as src, open(dest_path, "wb") as dst:
-                        dst.write(src.read())
+                    # Phase 1: intra-ZIP dedup
+                    if content_hash in seen_hashes_in_zip:
+                        continue
+                    seen_hashes_in_zip.add(content_hash)
 
-                    jobs.append(
-                        Job(
-                            dataset=dataset,
-                            file_name=base_name,
-                            file_path=dest_path,
-                            status=Job.Status.UPLOADED,
-                        )
-                    )
+                    try:
+                        eml_content = raw_bytes.decode("utf-8")
+                    except UnicodeDecodeError:
+                        eml_content = raw_bytes.decode("latin-1")
+
+                    candidates.append({
+                        "file_name": base_name,
+                        "eml_content": eml_content,
+                        "content_hash": content_hash,
+                    })
+
+            # Phase 2: global dedup against existing jobs in the database
+            candidate_hashes = {c["content_hash"] for c in candidates}
+            existing_hashes = set(
+                Job.objects.filter(content_hash__in=candidate_hashes)
+                .values_list("content_hash", flat=True)
+            )
+
+            jobs = []
+            for candidate in candidates:
+                if candidate["content_hash"] in existing_hashes:
+                    continue
+                job = Job(
+                    dataset=dataset,
+                    file_name=candidate["file_name"],
+                    eml_content=candidate["eml_content"],
+                    content_hash=candidate["content_hash"],
+                    status=Job.Status.UPLOADED,
+                )
+                jobs.append(job)
+
+            total_extracted = len(seen_hashes_in_zip)
+            duplicate_count = total_extracted - len(jobs)
 
             Job.objects.bulk_create(jobs)
             dataset.status = Dataset.Status.READY
             dataset.file_count = len(jobs)
-            dataset.save(update_fields=["status", "file_count"])
+            dataset.duplicate_count = duplicate_count
+            dataset.save(update_fields=["status", "file_count", "duplicate_count"])
 
         except Exception as e:
             dataset.status = Dataset.Status.FAILED
@@ -565,11 +580,9 @@ class JobViewSet(ViewSet):
             job = Job.objects.get(pk=pk)
         except Job.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        try:
-            with open(job.file_path, "r", encoding="utf-8") as f:
-                content = f.read()
-        except FileNotFoundError:
+        if not job.eml_content:
             return Response(
-                {"detail": "File not found."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "Email content not available."},
+                status=status.HTTP_404_NOT_FOUND,
             )
-        return HttpResponse(content, content_type="text/plain; charset=utf-8")
+        return HttpResponse(job.eml_content, content_type="text/plain; charset=utf-8")

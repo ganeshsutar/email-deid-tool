@@ -63,6 +63,10 @@ class JobForAnnotationSerializer(serializers.Serializer):
     raw_content_url = serializers.SerializerMethodField()
     latest_annotations = serializers.SerializerMethodField()
     rework_info = serializers.SerializerMethodField()
+    min_annotation_length = serializers.SerializerMethodField()
+
+    def get_min_annotation_length(self, obj):
+        return self.context.get("min_annotation_length", 1)
 
     def get_raw_content_url(self, obj):
         return f"/api/annotations/jobs/{obj.id}/raw-content/"
@@ -110,6 +114,7 @@ class SubmitAnnotationSerializer(serializers.Serializer):
     )
 
     def validate_annotations(self, value):
+        min_length = self.context.get("min_annotation_length", 1)
         for i, ann in enumerate(value):
             required_fields = [
                 "annotation_class",
@@ -126,6 +131,15 @@ class SubmitAnnotationSerializer(serializers.Serializer):
             if ann["start_offset"] >= ann["end_offset"]:
                 raise serializers.ValidationError(
                     f"Annotation {i}: start_offset must be less than end_offset."
+                )
+            stripped = ann["original_text"].strip()
+            if not stripped:
+                raise serializers.ValidationError(
+                    f"Annotation {i}: original_text cannot be empty or blank."
+                )
+            if len(stripped) < min_length:
+                raise serializers.ValidationError(
+                    f"Annotation {i}: original_text must be at least {min_length} characters (got {len(stripped)})."
                 )
         return value
 

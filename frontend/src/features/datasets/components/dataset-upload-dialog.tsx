@@ -48,6 +48,7 @@ function DatasetUploadDialogContent({
   const [datasetId, setDatasetId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [fileCount, setFileCount] = useState(0);
+  const [duplicateCount, setDuplicateCount] = useState(0);
 
   const uploadDataset = useUploadDataset();
 
@@ -61,6 +62,7 @@ function DatasetUploadDialogContent({
     if (statusData.status === DatasetStatus.READY) {
       setStage("success");
       setFileCount(statusData.fileCount);
+      setDuplicateCount(statusData.duplicateCount);
     } else if (statusData.status === DatasetStatus.FAILED) {
       setStage("error");
       setError(statusData.errorMessage || "Extraction failed.");
@@ -84,6 +86,7 @@ function DatasetUploadDialogContent({
       if (result.status === DatasetStatus.READY) {
         setStage("success");
         setFileCount(result.fileCount);
+        setDuplicateCount(result.duplicateCount);
       } else if (result.status === DatasetStatus.FAILED) {
         setStage("error");
         setError(result.errorMessage || "Extraction failed.");
@@ -123,6 +126,9 @@ function DatasetUploadDialogContent({
           <p className="text-sm text-muted-foreground">
             <strong>{fileCount}</strong> email files extracted from{" "}
             <strong>{name}</strong>
+            {duplicateCount > 0 && (
+              <>, <strong>{duplicateCount}</strong> duplicate(s) skipped</>
+            )}
           </p>
         </div>
         <DialogFooter>

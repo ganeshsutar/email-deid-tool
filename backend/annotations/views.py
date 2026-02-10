@@ -1,5 +1,3 @@
-import os
-
 from django.db import transaction
 from django.db.models import Count, Max
 from rest_framework import status
@@ -9,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from core.eml_normalizer import normalize_eml
+from core.models import PlatformSetting
 from core.permissions import IsAnnotator
 from datasets.models import Job
 from .models import Annotation, AnnotationVersion, DraftAnnotation
@@ -35,6 +34,13 @@ class AnnotationJobsPagination(PageNumberPagination):
 
 class AnnotationViewSet(ViewSet):
     permission_classes = [IsAuthenticated, IsAnnotator]
+
+    def _get_min_annotation_length(self):
+        try:
+            setting = PlatformSetting.objects.get(key="min_annotation_length")
+            return max(1, int(setting.value))
+        except (PlatformSetting.DoesNotExist, ValueError):
+            return 1
 
     def _get_job(self, job_id, user, allowed_statuses=None):
         """Fetch a job and validate assignment. Returns (job, error_response)."""
@@ -71,21 +77,22 @@ class AnnotationViewSet(ViewSet):
         job, err = self._get_job(job_id, request.user, allowed)
         if err:
             return err
-        serializer = JobForAnnotationSerializer(job)
+        min_length = self._get_min_annotation_length()
+        serializer = JobForAnnotationSerializer(
+            job, context={"min_annotation_length": min_length}
+        )
         return Response(serializer.data)
 
     def get_raw_content(self, request, job_id):
         job, err = self._get_job(job_id, request.user)
         if err:
             return err
-        try:
-            with open(job.file_path, "r", encoding="utf-8") as f:
-                raw_content = f.read()
-        except FileNotFoundError:
+        if not job.eml_content:
             return Response(
-                {"detail": "File not found on server."},
+                {"detail": "Email content not available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        raw_content = job.eml_content
         normalized_content, has_encoded_parts = normalize_eml(raw_content)
         return Response({
             "raw_content": raw_content,
@@ -184,7 +191,11 @@ class AnnotationViewSet(ViewSet):
                 {"detail": "Job status has changed. Please refresh."},
                 status=status.HTTP_409_CONFLICT,
             )
-        serializer = SubmitAnnotationSerializer(data=request.data)
+        min_length = self._get_min_annotation_length()
+        serializer = SubmitAnnotationSerializer(
+            data=request.data,
+            context={"min_annotation_length": min_length},
+        )
         serializer.is_valid(raise_exception=True)
         annotations_data = serializer.validated_data["annotations"]
 

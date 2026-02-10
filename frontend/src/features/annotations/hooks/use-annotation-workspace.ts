@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { AnnotationClass, WorkspaceAnnotation } from "@/types/models";
 import { ContentViewMode } from "@/types/enums";
 import { useJobForAnnotation, useRawContent } from "../api/get-job-for-annotation";
@@ -46,6 +47,19 @@ export function useAnnotationWorkspace(jobId: string) {
   const hasEncodedParts = contentData?.hasEncodedParts ?? false;
   const isViewingOriginal = contentViewMode === ContentViewMode.ORIGINAL;
   const displayContent = isViewingOriginal ? originalContent : normalizedContent;
+
+  const minAnnotationLength = job?.minAnnotationLength ?? 1;
+
+  function validateAnnotationText(text: string): string | null {
+    const stripped = text.trim();
+    if (!stripped) {
+      return "Selection cannot be empty or blank.";
+    }
+    if (stripped.length < minAnnotationLength) {
+      return `Selection must be at least ${minAnnotationLength} characters (got ${stripped.length}).`;
+    }
+    return null;
+  }
 
   // Same-value map: "className:originalText" → tag
   const sameValueMap = useRef(new Map<string, string>());
@@ -127,6 +141,14 @@ export function useAnnotationWorkspace(jobId: string) {
       setClassPopupOpen(false);
       const { text, start, end } = pendingSelection;
 
+      const validationError = validateAnnotationText(text);
+      if (validationError) {
+        toast.error(validationError);
+        setPendingSelection(null);
+        window.getSelection()?.removeAllRanges();
+        return;
+      }
+
       // Check same-value map
       const key = `${cls.name}:${text}`;
       const existingTag = sameValueMap.current.get(key);
@@ -191,7 +213,7 @@ export function useAnnotationWorkspace(jobId: string) {
       setPendingSelection(null);
       window.getSelection()?.removeAllRanges();
     },
-    [pendingSelection, sameValueLinkingEnabled],
+    [pendingSelection, sameValueLinkingEnabled, minAnnotationLength],
   );
 
   const handleSameValueDecision = useCallback(
@@ -274,9 +296,18 @@ export function useAnnotationWorkspace(jobId: string) {
   }, [jobId, annotations, saveDraftMutation]);
 
   const submit = useCallback(async () => {
+    const invalidAnnotations = annotations
+      .map((ann, i) => ({ index: i, error: validateAnnotationText(ann.originalText) }))
+      .filter((r) => r.error !== null);
+    if (invalidAnnotations.length > 0) {
+      toast.error(
+        `Cannot submit: ${invalidAnnotations.length} annotation(s) have invalid text. ${invalidAnnotations[0].error}`,
+      );
+      return;
+    }
     await submitMutation.mutateAsync({ jobId, annotations });
     setIsDirty(false);
-  }, [jobId, annotations, submitMutation]);
+  }, [jobId, annotations, submitMutation, minAnnotationLength]);
 
   const closeClassPopup = useCallback(() => {
     setClassPopupOpen(false);

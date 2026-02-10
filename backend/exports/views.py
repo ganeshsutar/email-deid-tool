@@ -145,16 +145,13 @@ class ExportViewSet(ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        try:
-            with open(job.file_path, "r", encoding="utf-8") as f:
-                raw_content = f.read()
-        except FileNotFoundError:
+        if not job.eml_content:
             return Response(
-                {"detail": "File not found on server."},
+                {"detail": "Email content not available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        normalized, _ = normalize_eml(raw_content)
+        normalized, _ = normalize_eml(job.eml_content)
 
         latest_version = (
             job.annotation_versions.order_by("-version_number").first()
@@ -251,13 +248,10 @@ class ExportViewSet(ViewSet):
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for job in jobs:
-                try:
-                    with open(job.file_path, "r", encoding="utf-8") as f:
-                        raw_content = f.read()
-                except FileNotFoundError:
+                if not job.eml_content:
                     continue
 
-                normalized, _ = normalize_eml(raw_content)
+                normalized, _ = normalize_eml(job.eml_content)
 
                 latest_version = (
                     job.annotation_versions.order_by("-version_number").first()

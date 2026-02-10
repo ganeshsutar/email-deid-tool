@@ -11,6 +11,7 @@ export interface AnnotationJobResponse {
   rawContentUrl: string;
   latestAnnotations: WorkspaceAnnotation[];
   reworkInfo: ReworkInfo | null;
+  minAnnotationLength: number;
 }
 
 export interface ReworkInfo {
@@ -74,6 +75,7 @@ export function mapAnnotationJobResponse(
     rawContentUrl: data.raw_content_url as string,
     latestAnnotations,
     reworkInfo: mapReworkInfo(data.rework_info as Record<string, unknown> | null),
+    minAnnotationLength: (data.min_annotation_length as number) ?? 1,
   };
 }
 

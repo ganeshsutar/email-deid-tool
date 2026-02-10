@@ -21,6 +21,7 @@ class DatasetListSerializer(serializers.ModelSerializer):
             "uploaded_by",
             "upload_date",
             "file_count",
+            "duplicate_count",
             "status",
             "error_message",
             "status_summary",
@@ -48,8 +49,8 @@ class DatasetDetailSerializer(serializers.ModelSerializer):
             "uploaded_by",
             "upload_date",
             "file_count",
+            "duplicate_count",
             "status",
-            "file_path",
             "error_message",
             "status_summary",
         ]
@@ -84,7 +85,7 @@ class DatasetUploadSerializer(serializers.Serializer):
 class DatasetStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
-        fields = ["id", "status", "file_count", "error_message"]
+        fields = ["id", "status", "file_count", "duplicate_count", "error_message"]
         read_only_fields = fields
 
 
@@ -97,7 +98,6 @@ class JobSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "file_name",
-            "file_path",
             "status",
             "assigned_annotator",
             "assigned_qa",
@@ -119,7 +119,6 @@ class JobDetailSerializer(serializers.ModelSerializer):
             "dataset",
             "dataset_name",
             "file_name",
-            "file_path",
             "status",
             "assigned_annotator",
             "assigned_qa",

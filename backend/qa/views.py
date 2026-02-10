@@ -1,5 +1,4 @@
 import json
-import os
 
 from django.db import transaction
 from django.db.models import Count, Max
@@ -47,6 +46,13 @@ class QAViewSet(ViewSet):
         except PlatformSetting.DoesNotExist:
             return False
 
+    def _get_min_annotation_length(self):
+        try:
+            setting = PlatformSetting.objects.get(key="min_annotation_length")
+            return max(1, int(setting.value))
+        except (PlatformSetting.DoesNotExist, ValueError):
+            return 1
+
     def _get_job(self, job_id, user, allowed_statuses=None):
         """Fetch a job and validate QA assignment. Returns (job, error_response)."""
         try:
@@ -91,14 +97,12 @@ class QAViewSet(ViewSet):
         job, err = self._get_job(job_id, request.user)
         if err:
             return err
-        try:
-            with open(job.file_path, "r", encoding="utf-8") as f:
-                raw_content = f.read()
-        except FileNotFoundError:
+        if not job.eml_content:
             return Response(
-                {"detail": "File not found on server."},
+                {"detail": "Email content not available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        raw_content = job.eml_content
         normalized_content, has_encoded_parts = normalize_eml(raw_content)
         return Response({
             "raw_content": raw_content,
@@ -169,7 +173,11 @@ class QAViewSet(ViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        serializer = AcceptAnnotationSerializer(data=request.data)
+        min_length = self._get_min_annotation_length()
+        serializer = AcceptAnnotationSerializer(
+            data=request.data,
+            context={"min_annotation_length": min_length},
+        )
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 

@@ -23,8 +23,8 @@ export interface Dataset {
   uploadedBy: User | null;
   uploadDate: string;
   fileCount: number;
+  duplicateCount: number;
   status: DatasetStatus;
-  filePath: string;
   errorMessage: string;
 }
 
@@ -32,7 +32,6 @@ export interface Job {
   id: string;
   dataset: Dataset | string;
   fileName: string;
-  filePath: string;
   status: JobStatus;
   assignedAnnotator: User | null;
   assignedQa: User | null;
@@ -88,7 +87,6 @@ export interface ExportRecord {
   dataset: string;
   jobIds: string[];
   fileSize: number;
-  filePath: string;
   exportedBy: User | null;
   exportedAt: string;
 }
