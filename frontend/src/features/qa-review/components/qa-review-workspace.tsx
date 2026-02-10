@@ -115,6 +115,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               size="sm"
               onClick={review.saveDraft}
               disabled={!review.isDirty || review.isSaving}
+              data-testid="save-draft-button"
             >
               <Save className="mr-1 h-4 w-4" />
               {review.isSaving ? "Saving..." : "Save Draft"}
@@ -124,6 +125,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               size="sm"
               onClick={() => setRejectDialogOpen(true)}
               disabled={review.isRejecting}
+              data-testid="reject-button"
             >
               <XCircle className="mr-1 h-4 w-4" />
               Reject
@@ -132,6 +134,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               size="sm"
               onClick={() => setAcceptDialogOpen(true)}
               disabled={review.isAccepting}
+              data-testid="accept-button"
             >
               <Check className="mr-1 h-4 w-4" />
               Accept
@@ -272,7 +275,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
   const modSummary = review.getModificationSummary();
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-testid="qa-review-workspace">
       {/* Main workspace */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup orientation="horizontal">
@@ -294,14 +297,14 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
             </div>
           </ResizablePanel>
           <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={40} minSize={25}>
+          <ResizablePanel defaultSize={40} minSize={25} data-testid="qa-right-panel">
             <Tabs
               value={review.activeRightTab}
               onValueChange={review.setActiveRightTab}
               className="flex h-full flex-col"
             >
               <TabsList className="mx-2 mt-2 w-fit">
-                <TabsTrigger value="annotations">
+                <TabsTrigger value="annotations" data-testid="annotations-tab-trigger">
                   Annotations ({review.currentAnnotations.length})
                 </TabsTrigger>
                 <TabsTrigger value="email">Email</TabsTrigger>

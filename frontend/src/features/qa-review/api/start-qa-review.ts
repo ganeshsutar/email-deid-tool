@@ -10,8 +10,9 @@ export function useStartQAReview() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: startQAReview,
-    onSuccess: () => {
+    onSuccess: (_data, jobId) => {
       queryClient.invalidateQueries({ queryKey: ["qa", "my-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["qa", "job", jobId] });
       toast.success("QA review started");
     },
   });

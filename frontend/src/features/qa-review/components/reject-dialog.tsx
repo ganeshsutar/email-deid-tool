@@ -29,7 +29,7 @@ export function RejectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-testid="reject-dialog">
         <DialogHeader>
           <DialogTitle>Reject Annotations?</DialogTitle>
           <DialogDescription>
@@ -43,6 +43,7 @@ export function RejectDialog({
             value={comments}
             onChange={(e) => setComments(e.target.value)}
             rows={4}
+            data-testid="reject-comments-input"
           />
           {comments.length > 0 && !isValid && (
             <p className="text-xs text-destructive mt-1">
@@ -51,13 +52,14 @@ export function RejectDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="reject-cancel">
             Cancel
           </Button>
           <Button
             variant="destructive"
             onClick={() => onConfirm(comments)}
             disabled={!isValid || isSubmitting}
+            data-testid="reject-confirm"
           >
             {isSubmitting ? "Rejecting..." : "Reject"}
           </Button>

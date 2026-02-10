@@ -90,7 +90,7 @@ export function AnnotationsReviewListTab({
   }, [annotations, annotationStatuses, filter]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" data-testid="annotations-review-list">
       <div className="flex items-center gap-2 p-2 border-b text-xs">
         <span className="text-green-600">{counts.ok} OK</span>
         <span className="text-yellow-600">{counts.flagged} Flagged</span>
@@ -143,6 +143,7 @@ export function AnnotationsReviewListTab({
                     key={ann.id}
                     className={`cursor-pointer hover:bg-muted/50 ${statusRowClasses[status]}`}
                     onClick={() => onAnnotationClick(ann.id)}
+                    data-testid="annotation-list-item"
                   >
                     <TableCell className="text-center">
                       {statusIcons[status]}
@@ -185,6 +186,7 @@ export function AnnotationsReviewListTab({
                             disabled={status === AnnotationQAStatus.OK}
                             onClick={() => onMarkOK?.(ann.id)}
                             title="Mark OK"
+                            data-testid="annotation-ok-button"
                           >
                             <Check className="h-3 w-3" />
                           </Button>
@@ -195,6 +197,7 @@ export function AnnotationsReviewListTab({
                             disabled={status === AnnotationQAStatus.FLAGGED}
                             onClick={() => onFlag?.(ann.id)}
                             title="Flag"
+                            data-testid="annotation-flag-button"
                           >
                             <Flag className="h-3 w-3" />
                           </Button>
@@ -215,6 +218,7 @@ export function AnnotationsReviewListTab({
                                 className="h-6 w-6 text-destructive hover:text-destructive"
                                 onClick={() => onDelete?.(ann.id)}
                                 title="Delete"
+                                data-testid="annotation-delete-button"
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>

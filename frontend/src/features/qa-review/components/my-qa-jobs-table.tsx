@@ -53,7 +53,7 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
   }
 
   return (
-    <Table>
+    <Table data-testid="qa-jobs-table">
       <TableHeader>
         <TableRow>
           <TableHead>File Name</TableHead>
@@ -81,7 +81,7 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
             <TableRow key={job.id}>
               <TableCell className="font-medium">{job.fileName}</TableCell>
               <TableCell>{job.datasetName}</TableCell>
-              <TableCell className="text-sm">
+              <TableCell className="text-sm" data-testid="annotator-info">
                 {job.annotatorName ?? "-"}
               </TableCell>
               <TableCell>
@@ -109,6 +109,7 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
                         params: { jobId: job.id },
                       })
                     }
+                    data-testid="job-review-button"
                   >
                     {getAction(job)}
                   </Button>

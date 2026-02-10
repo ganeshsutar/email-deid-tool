@@ -66,20 +66,22 @@ class DatasetViewSet(ViewSet):
         except Dataset.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        in_progress = dataset.jobs.filter(
-            status__in=[
-                Job.Status.ANNOTATION_IN_PROGRESS,
-                Job.Status.QA_IN_PROGRESS,
-            ]
-        ).exists()
-        if in_progress:
-            return Response(
-                {
-                    "detail": "Cannot delete dataset with jobs in progress. "
-                    "Wait for in-progress jobs to complete first."
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        force = request.query_params.get("force", "").lower() in ("true", "1")
+        if not force:
+            in_progress = dataset.jobs.filter(
+                status__in=[
+                    Job.Status.ANNOTATION_IN_PROGRESS,
+                    Job.Status.QA_IN_PROGRESS,
+                ]
+            ).exists()
+            if in_progress:
+                return Response(
+                    {
+                        "detail": "Cannot delete dataset with jobs in progress. "
+                        "Wait for in-progress jobs to complete first."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         dataset.delete()  # CASCADE deletes jobs
         return Response(status=status.HTTP_204_NO_CONTENT)

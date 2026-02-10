@@ -44,7 +44,7 @@ function QADashboardPage() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 p-6" data-testid="qa-dashboard">
       <h1 className="text-xl font-bold tracking-tight lg:text-2xl">QA Review Jobs</h1>
 
       {data && (
@@ -61,7 +61,11 @@ function QADashboardPage() {
         >
           <TabsList>
             {statusTabs.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                data-testid={`status-tab-${tab.label.toLowerCase().replace(/\s+/g, "-") || "all"}`}
+              >
                 {tab.label}
               </TabsTrigger>
             ))}
@@ -76,6 +80,7 @@ function QADashboardPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
+              data-testid="qa-jobs-search"
             />
           </div>
           <Button type="submit" variant="secondary">
@@ -93,16 +98,18 @@ function QADashboardPage() {
           <div className="rounded-lg border">
             <MyQAJobsTable jobs={data.results} />
           </div>
-          <DataTablePagination
-            page={page}
-            pageSize={pageSize}
-            totalCount={data.count}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
+          <div data-testid="qa-jobs-pagination">
+            <DataTablePagination
+              page={page}
+              pageSize={pageSize}
+              totalCount={data.count}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
+          </div>
         </>
       ) : null}
     </div>

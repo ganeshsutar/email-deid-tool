@@ -83,6 +83,7 @@ function SettingsPage() {
               checked={blindReview?.enabled ?? false}
               onCheckedChange={handleToggle}
               disabled={isLoading || updateBlindReview.isPending}
+              data-testid="blind-review-toggle"
             />
           </div>
         </CardContent>

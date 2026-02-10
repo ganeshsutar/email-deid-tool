@@ -85,6 +85,9 @@ class QAViewSet(ViewSet):
         allowed = [
             Job.Status.ASSIGNED_QA,
             Job.Status.QA_IN_PROGRESS,
+            Job.Status.QA_ACCEPTED,
+            Job.Status.QA_REJECTED,
+            Job.Status.DELIVERED,
         ]
         job, err = self._get_job(job_id, request.user, allowed)
         if err:

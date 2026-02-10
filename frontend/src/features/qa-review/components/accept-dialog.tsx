@@ -31,10 +31,10 @@ export function AcceptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent data-testid="accept-dialog">
         <DialogHeader>
           <DialogTitle>Accept Annotations?</DialogTitle>
-          <DialogDescription>
+          <DialogDescription data-testid="modification-summary">
             {hasModifications ? (
               <>
                 You have made modifications:{" "}
@@ -58,12 +58,13 @@ export function AcceptDialog({
           rows={3}
         />
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="accept-cancel">
             Cancel
           </Button>
           <Button
             onClick={() => onConfirm(comments)}
             disabled={isSubmitting}
+            data-testid="accept-confirm"
           >
             {isSubmitting ? "Accepting..." : "Accept"}
           </Button>

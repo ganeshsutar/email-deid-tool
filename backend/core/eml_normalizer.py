@@ -3,11 +3,13 @@ Utility to normalize .eml file content by decoding base64 and quoted-printable
 encoded text parts into readable text, preserving MIME structure and offsets.
 """
 
+import bisect
 import base64
 import email
 import email.message
 import quopri
 import re
+from collections.abc import Callable
 
 
 def normalize_eml(raw_content: str) -> tuple[str, bool]:
@@ -224,6 +226,305 @@ def _replace_cte_header(header_text: str, old_cte: str) -> str:
         re.IGNORECASE,
     )
     return pattern.sub(r"\g<1>8bit", header_text)
+
+
+# ---------------------------------------------------------------------------
+# Raw → normalized offset mapping
+# ---------------------------------------------------------------------------
+
+
+def _is_hex_char(c: str) -> bool:
+    """Check if a character is a valid hexadecimal digit."""
+    return c in "0123456789ABCDEFabcdef"
+
+
+def _build_qp_offset_table(
+    raw_stripped_body: str, charset: str = "utf-8"
+) -> list[int]:
+    """
+    Build a character-level offset table for QP-encoded body text.
+
+    Maps each position in the raw (QP-encoded, \\r-stripped) body to the
+    corresponding position in the decoded (\\r-stripped) body string.
+
+    Accounts for multi-byte charsets (e.g. UTF-8) where multiple QP hex pairs
+    (like =E2=80=A2) decode to a single Unicode character.
+
+    Returns a list of length len(raw_stripped_body) + 1 where
+    table[i] = decoded character position for raw position i.
+    """
+    body = raw_stripped_body
+    body_len = len(body)
+
+    # Pass 1: build byte-level table (raw position → decoded byte position)
+    byte_table = [0] * (body_len + 1)
+    i = 0
+    byte_pos = 0
+
+    while i < body_len:
+        byte_table[i] = byte_pos
+
+        if body[i] == "=":
+            if i + 1 < body_len and body[i + 1] == "\n":
+                # Soft line break → 0 decoded bytes
+                byte_table[i + 1] = byte_pos
+                i += 2
+            elif (
+                i + 2 < body_len
+                and _is_hex_char(body[i + 1])
+                and _is_hex_char(body[i + 2])
+            ):
+                # Hex pair =XX → 1 decoded byte
+                byte_table[i + 1] = byte_pos
+                byte_table[i + 2] = byte_pos
+                i += 3
+                byte_pos += 1
+            else:
+                # Malformed or trailing =, treat as literal byte
+                i += 1
+                byte_pos += 1
+        else:
+            # Regular ASCII character → 1 decoded byte
+            i += 1
+            byte_pos += 1
+
+    byte_table[body_len] = byte_pos
+
+    # Pass 2: decode bytes and build byte→char mapping
+    decoded_bytes = quopri.decodestring(body.encode("ascii", errors="replace"))
+    decoded_str = decoded_bytes.decode(charset, errors="replace")
+
+    byte_to_char = [0] * (len(decoded_bytes) + 1)
+    char_idx = 0
+    bp = 0
+    for ch in decoded_str:
+        ch_byte_len = len(ch.encode(charset, errors="replace"))
+        for _ in range(ch_byte_len):
+            if bp < len(byte_to_char):
+                byte_to_char[bp] = char_idx
+            bp += 1
+        char_idx += 1
+    # Fill end sentinel
+    while bp <= len(decoded_bytes):
+        if bp < len(byte_to_char):
+            byte_to_char[bp] = char_idx
+        bp += 1
+
+    # Pass 3: compose byte_table with byte_to_char
+    table = [0] * (body_len + 1)
+    for i in range(body_len + 1):
+        b = min(byte_table[i], len(decoded_bytes))
+        table[i] = byte_to_char[b] if b < len(byte_to_char) else char_idx
+
+    return table
+
+
+def _to_stripped_offset(pos: int, cr_positions: list[int]) -> int:
+    """Convert a position in the original string to the \\r-stripped position."""
+    count = bisect.bisect_left(cr_positions, pos)
+    return pos - count
+
+
+def _build_single_part_replacement(
+    raw_content: str, msg: email.message.Message
+) -> dict | None:
+    """Build replacement info for a single-part encoded text/* message."""
+    content_type = msg.get_content_type() or ""
+    if not content_type.startswith("text/"):
+        return None
+
+    cte = _get_cte(msg)
+    if cte not in ("base64", "quoted-printable"):
+        return None
+
+    charset = msg.get_content_charset() or "utf-8"
+
+    sep_match = re.search(r"\r?\n\r?\n", raw_content)
+    if not sep_match:
+        return None
+
+    body_start = sep_match.end()
+    body_end = len(raw_content)
+    encoded_body = raw_content[body_start:body_end]
+
+    decoded_text = _decode_payload(encoded_body, cte, charset)
+    if decoded_text is None:
+        return None
+
+    # Search entire header section for CTE header
+    header_section = raw_content[:body_start]
+    cte_pattern = re.compile(
+        r"Content-Transfer-Encoding:\s*" + re.escape(cte.strip()),
+        re.IGNORECASE,
+    )
+    cte_match = cte_pattern.search(header_section)
+    if not cte_match:
+        return None
+
+    return {
+        "body_start": body_start,
+        "body_end": body_end,
+        "decoded_text": decoded_text,
+        "cte_start": cte_match.start(),
+        "cte_end": cte_match.end(),
+        "cte_replacement": "Content-Transfer-Encoding: 8bit",
+    }
+
+
+def build_raw_to_normalized_offset_map(
+    raw_content: str,
+) -> tuple[str, Callable[[int], int]]:
+    """
+    Build a mapping function from raw-stripped offsets to normalized-stripped offsets.
+
+    Returns (norm_stripped, map_fn) where:
+    - norm_stripped is normalize_eml(raw_content)[0] with \\r removed
+    - map_fn(raw_stripped_offset) -> norm_stripped_offset
+    """
+    normalized, has_encoded = normalize_eml(raw_content)
+    norm_stripped = normalized.replace("\r", "")
+
+    if not has_encoded:
+        return norm_stripped, lambda offset: offset
+
+    # Collect replacement segments
+    msg = email.message_from_string(raw_content)
+    replacements: list[dict] = []
+
+    if msg.is_multipart():
+        _collect_part_replacements(raw_content, msg, replacements)
+    else:
+        # Handle single-part messages directly (like _normalize_single_part)
+        # _collect_part_replacements uses a 500-char header search window that
+        # can be too small for emails with many headers.
+        rep = _build_single_part_replacement(raw_content, msg)
+        if rep is not None:
+            replacements.append(rep)
+
+    if not replacements:
+        return norm_stripped, lambda offset: offset
+
+    raw_stripped = raw_content.replace("\r", "")
+
+    # Precompute \r positions for coordinate conversion
+    cr_positions = [i for i, c in enumerate(raw_content) if c == "\r"]
+
+    # Sort by body_start ascending
+    replacements.sort(key=lambda r: r["body_start"])
+
+    # Build event list (CTE header change, body change) sorted by position
+    events = []
+    for rep in replacements:
+        rs_cte_start = _to_stripped_offset(rep["cte_start"], cr_positions)
+        rs_cte_end = _to_stripped_offset(rep["cte_end"], cr_positions)
+        rs_body_start = _to_stripped_offset(rep["body_start"], cr_positions)
+        rs_body_end = _to_stripped_offset(rep["body_end"], cr_positions)
+
+        decoded_stripped = rep["decoded_text"].replace("\r", "")
+
+        # Detect CTE type from raw content
+        cte_text = raw_content[rep["cte_start"] : rep["cte_end"]].lower()
+        is_qp = "quoted-printable" in cte_text
+
+        # Build QP offset table for QP parts.
+        # _decode_payload strips leading/trailing whitespace before decoding,
+        # so the QP table must be built on the stripped content only.
+        qp_map = None
+        content_start_in_body = 0
+        content_end_in_body = rs_body_end - rs_body_start
+        if is_qp:
+            raw_body = raw_stripped[rs_body_start:rs_body_end]
+            content_start_in_body = len(raw_body) - len(raw_body.lstrip())
+            raw_body_content = raw_body.strip()
+            content_end_in_body = content_start_in_body + len(raw_body_content)
+            # Detect charset from Content-Type header near CTE header
+            ct_region = raw_content[
+                max(0, rep["cte_start"] - 300) : rep["cte_start"] + 300
+            ]
+            ct_match = re.search(
+                r"charset=[\"']?([^\"';\s]+)", ct_region, re.IGNORECASE
+            )
+            charset = ct_match.group(1) if ct_match else "utf-8"
+            qp_map = _build_qp_offset_table(raw_body_content, charset)
+
+        events.append(
+            {
+                "type": "cte",
+                "start": rs_cte_start,
+                "end": rs_cte_end,
+                "replacement_len": len(rep["cte_replacement"]),
+            }
+        )
+        events.append(
+            {
+                "type": "body",
+                "start": rs_body_start,
+                "end": rs_body_end,
+                "decoded_stripped_len": len(decoded_stripped),
+                "qp_map": qp_map,
+                "content_start": content_start_in_body,
+                "content_end": content_end_in_body,
+            }
+        )
+
+    events.sort(key=lambda e: e["start"])
+
+    def map_fn(raw_offset: int) -> int:
+        cumulative_delta = 0
+        for event in events:
+            if raw_offset < event["start"]:
+                return raw_offset - cumulative_delta
+
+            if event["type"] == "cte":
+                if raw_offset < event["end"]:
+                    # Inside CTE header — snap to start in normalized
+                    return event["start"] - cumulative_delta
+                cte_delta = (
+                    (event["end"] - event["start"]) - event["replacement_len"]
+                )
+                cumulative_delta += cte_delta
+
+            elif event["type"] == "body":
+                if raw_offset <= event["end"]:
+                    ns_body_start = event["start"] - cumulative_delta
+                    local_offset = raw_offset - event["start"]
+
+                    if event["qp_map"] is not None:
+                        cs = event["content_start"]
+                        ce = event["content_end"]
+                        if local_offset < cs:
+                            decoded_local = 0
+                        elif local_offset >= ce:
+                            decoded_local = event["decoded_stripped_len"]
+                        else:
+                            qp_local = min(
+                                local_offset - cs,
+                                len(event["qp_map"]) - 1,
+                            )
+                            decoded_local = min(
+                                event["qp_map"][qp_local],
+                                event["decoded_stripped_len"],
+                            )
+                    else:
+                        # Base64: proportional mapping
+                        body_len = event["end"] - event["start"]
+                        ratio = local_offset / max(1, body_len)
+                        decoded_local = min(
+                            int(ratio * event["decoded_stripped_len"]),
+                            event["decoded_stripped_len"],
+                        )
+
+                    return ns_body_start + decoded_local
+
+                body_delta = (
+                    (event["end"] - event["start"])
+                    - event["decoded_stripped_len"]
+                )
+                cumulative_delta += body_delta
+
+        return raw_offset - cumulative_delta
+
+    return norm_stripped, map_fn
 
 
 # ---------------------------------------------------------------------------

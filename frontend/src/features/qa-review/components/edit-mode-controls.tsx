@@ -19,12 +19,13 @@ export function EditModeControls({
         id="edit-mode"
         checked={enabled}
         onCheckedChange={onToggle}
+        data-testid="edit-mode-toggle"
       />
       <Label htmlFor="edit-mode" className="text-sm cursor-pointer">
         Edit Mode: {enabled ? "ON" : "OFF"}
       </Label>
       {modificationCount > 0 && (
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="secondary" className="text-xs" data-testid="modification-count-badge">
           {modificationCount} change{modificationCount !== 1 ? "s" : ""}
         </Badge>
       )}
