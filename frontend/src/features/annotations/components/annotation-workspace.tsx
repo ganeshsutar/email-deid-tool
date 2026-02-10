@@ -37,7 +37,9 @@ import { RawContentViewer } from "@/components/raw-content-viewer";
 import { SameValueLinkingDialog } from "@/components/same-value-linking-dialog";
 import { JobStatus } from "@/types/enums";
 import { useSetHeaderSlot } from "@/lib/header-slot";
+import { AnnotationActionToolbar } from "./annotation-action-toolbar";
 import { ReworkBanner } from "./rework-banner";
+import { TagReassignmentDialog } from "./tag-reassignment-dialog";
 import { useAnnotationWorkspace } from "../hooks/use-annotation-workspace";
 
 interface AnnotationWorkspaceProps {
@@ -49,6 +51,9 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
   const { data: annotationClasses } = useAnnotationClasses();
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+  const [toolbarAnnotation, setToolbarAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  const [tagReassignAnnotation, setTagReassignAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
   const navigate = useNavigate();
 
   const isReadOnly = workspace.job?.status !== JobStatus.ANNOTATION_IN_PROGRESS;
@@ -183,6 +188,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
   }
 
   function handleEdit(id: string) {
+    setToolbarAnnotation(null);
     setEditingAnnotationId(id);
   }
 
@@ -219,6 +225,20 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
                 onTextSelect={isReadOnly || workspace.isViewingOriginal ? undefined : handleTextSelect}
                 onAnnotationClick={(ann) => {
                   workspace.setSelectedAnnotationId(ann.id);
+                  if (!isReadOnly) {
+                    const container = document.querySelector("[data-raw-content-container]") as HTMLElement | null;
+                    if (container) {
+                      const span = container.querySelector(`[data-annotation-id="${ann.id}"]`);
+                      if (span) {
+                        const rect = span.getBoundingClientRect();
+                        setToolbarPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 4 });
+                        setToolbarAnnotation(ann);
+                        return;
+                      }
+                    }
+                    setToolbarPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                    setToolbarAnnotation(ann);
+                  }
                 }}
                 hasEncodedParts={workspace.hasEncodedParts}
                 contentViewMode={workspace.contentViewMode}
@@ -265,6 +285,27 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
         </ResizablePanelGroup>
       </div>
 
+      {/* Annotation action toolbar */}
+      {toolbarAnnotation && !isReadOnly && (
+        <AnnotationActionToolbar
+          annotation={toolbarAnnotation}
+          position={toolbarPosition}
+          onEdit={() => handleEdit(toolbarAnnotation.id)}
+          onDelete={() => workspace.deleteAnnotation(toolbarAnnotation.id)}
+          onClose={() => setToolbarAnnotation(null)}
+          onChangeTag={() => {
+            setTagReassignAnnotation(toolbarAnnotation);
+            setToolbarAnnotation(null);
+          }}
+          hasOtherTags={
+            workspace.getExistingTagsForClass(
+              toolbarAnnotation.className,
+              toolbarAnnotation.tag,
+            ).length > 0
+          }
+        />
+      )}
+
       {/* Class selection popup */}
       {workspace.classPopupOpen && annotationClasses && (
         <ClassSelectionPopup
@@ -292,9 +333,27 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
           text={workspace.sameValuePrompt.text}
           existingTag={workspace.sameValuePrompt.existingTag}
           newTag={workspace.sameValuePrompt.newTag}
+          similarText={workspace.sameValuePrompt.similarText}
           onUseExisting={() => workspace.handleSameValueDecision(true)}
           onCreateNew={() => workspace.handleSameValueDecision(false)}
           onCancel={workspace.cancelSameValue}
+        />
+      )}
+
+      {/* Tag reassignment dialog */}
+      {tagReassignAnnotation && (
+        <TagReassignmentDialog
+          open
+          currentTag={tagReassignAnnotation.tag}
+          availableTags={workspace.getExistingTagsForClass(
+            tagReassignAnnotation.className,
+            tagReassignAnnotation.tag,
+          )}
+          onSelect={(tag) => {
+            workspace.reassignTag(tagReassignAnnotation.id, tag);
+            setTagReassignAnnotation(null);
+          }}
+          onClose={() => setTagReassignAnnotation(null)}
         />
       )}
 

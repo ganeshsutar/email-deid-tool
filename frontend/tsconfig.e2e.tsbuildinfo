@@ -1,0 +1,1 @@
+{"root":["./e2e/config.example.ts","./e2e/config.ts","./e2e/fixtures/auth.ts","./e2e/tests/login.spec.ts","./playwright.config.ts"],"version":"5.9.3"}

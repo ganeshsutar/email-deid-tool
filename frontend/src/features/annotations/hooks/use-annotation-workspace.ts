@@ -21,6 +21,37 @@ interface SameValuePrompt {
   existingTag: string;
   newTag: string;
   pendingAnnotation: Omit<WorkspaceAnnotation, "id" | "tag">;
+  similarText?: string;
+}
+
+function sameValueKey(className: string, text: string): string {
+  return `${className}:${text.toLowerCase()}`;
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  // Use single-row DP for space efficiency
+  let prev = new Array<number>(n + 1);
+  let curr = new Array<number>(n + 1);
+
+  for (let j = 0; j <= n; j++) prev[j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        curr[j] = prev[j - 1];
+      } else {
+        curr[j] = 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+      }
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
 }
 
 export function useAnnotationWorkspace(jobId: string) {
@@ -61,7 +92,7 @@ export function useAnnotationWorkspace(jobId: string) {
     return null;
   }
 
-  // Same-value map: "className:originalText" → tag
+  // Same-value map: "className:lowercaseText" → tag
   const sameValueMap = useRef(new Map<string, string>());
   // Tag counter: className → highest used index
   const tagCounterMap = useRef(new Map<string, number>());
@@ -103,7 +134,7 @@ export function useAnnotationWorkspace(jobId: string) {
     tagCounterMap.current.clear();
 
     for (const ann of anns) {
-      const key = `${ann.className}:${ann.originalText}`;
+      const key = sameValueKey(ann.className, ann.originalText);
       sameValueMap.current.set(key, ann.tag);
 
       const tagMatch = ann.tag.match(/\[(\w+)_(\d+)\]/);
@@ -116,6 +147,11 @@ export function useAnnotationWorkspace(jobId: string) {
         }
       }
     }
+  }
+
+  function peekNextTag(className: string): string {
+    const current = tagCounterMap.current.get(className) ?? 0;
+    return `[${className}_${current + 1}]`;
   }
 
   function getNextTag(className: string): string {
@@ -149,14 +185,14 @@ export function useAnnotationWorkspace(jobId: string) {
         return;
       }
 
-      // Check same-value map
-      const key = `${cls.name}:${text}`;
+      // Check same-value map (case-insensitive)
+      const key = sameValueKey(cls.name, text);
       const existingTag = sameValueMap.current.get(key);
-      const newTag = getNextTag(cls.name);
 
       if (existingTag) {
         if (!sameValueLinkingEnabled) {
-          // Auto-assign new tag, skip dialog
+          // Auto-assign new tag, skip dialog — actually increment counter
+          const newTag = getNextTag(cls.name);
           const annotation: WorkspaceAnnotation = {
             id: crypto.randomUUID(),
             classId: cls.id,
@@ -175,12 +211,12 @@ export function useAnnotationWorkspace(jobId: string) {
           window.getSelection()?.removeAllRanges();
           return;
         }
-        // Show same-value dialog
+        // Show same-value dialog — peek only, don't increment yet
         setSameValuePrompt({
           text,
           className: cls.name,
           existingTag,
-          newTag,
+          newTag: peekNextTag(cls.name),
           pendingAnnotation: {
             classId: cls.id,
             className: cls.name,
@@ -194,7 +230,52 @@ export function useAnnotationWorkspace(jobId: string) {
         return;
       }
 
-      // No existing match — create with new tag
+      // No exact match — try fuzzy matching if linking is enabled
+      if (sameValueLinkingEnabled) {
+        const textLower = text.toLowerCase();
+        let bestMatch: { existingText: string; tag: string; distance: number } | null = null;
+
+        // Collect unique (originalText, tag) pairs for this class
+        const seen = new Set<string>();
+        for (const ann of annotations) {
+          if (ann.className !== cls.name) continue;
+          const annTextLower = ann.originalText.toLowerCase();
+          if (seen.has(annTextLower)) continue;
+          seen.add(annTextLower);
+
+          const distance = levenshteinDistance(textLower, annTextLower);
+          const maxLen = Math.max(textLower.length, annTextLower.length);
+          if (distance > 0 && distance <= 2 && maxLen > 0 && distance / maxLen <= 0.35) {
+            if (!bestMatch || distance < bestMatch.distance) {
+              bestMatch = { existingText: ann.originalText, tag: ann.tag, distance };
+            }
+          }
+        }
+
+        if (bestMatch) {
+          // Fuzzy match dialog — peek only, don't increment yet
+          setSameValuePrompt({
+            text,
+            className: cls.name,
+            existingTag: bestMatch.tag,
+            newTag: peekNextTag(cls.name),
+            pendingAnnotation: {
+              classId: cls.id,
+              className: cls.name,
+              classColor: cls.color,
+              classDisplayLabel: cls.displayLabel,
+              startOffset: start,
+              endOffset: end,
+              originalText: text,
+            },
+            similarText: bestMatch.existingText,
+          });
+          return;
+        }
+      }
+
+      // No match at all — actually increment and create
+      const newTag = getNextTag(cls.name);
       const annotation: WorkspaceAnnotation = {
         id: crypto.randomUUID(),
         classId: cls.id,
@@ -213,20 +294,21 @@ export function useAnnotationWorkspace(jobId: string) {
       setPendingSelection(null);
       window.getSelection()?.removeAllRanges();
     },
-    [pendingSelection, sameValueLinkingEnabled, minAnnotationLength],
+    [pendingSelection, sameValueLinkingEnabled, minAnnotationLength, annotations],
   );
 
   const handleSameValueDecision = useCallback(
     (useExisting: boolean) => {
       if (!sameValuePrompt) return;
 
-      const { pendingAnnotation, existingTag, newTag, className, text } =
+      const { pendingAnnotation, existingTag, className, text } =
         sameValuePrompt;
-      const tag = useExisting ? existingTag : newTag;
+
+      // Only increment the counter when user actually chooses a new tag
+      const tag = useExisting ? existingTag : getNextTag(className);
 
       if (!useExisting) {
-        // Already incremented in getNextTag, need to set map
-        sameValueMap.current.set(`${className}:${text}`, newTag);
+        sameValueMap.current.set(sameValueKey(className, text), tag);
       }
 
       const annotation: WorkspaceAnnotation = {
@@ -250,11 +332,11 @@ export function useAnnotationWorkspace(jobId: string) {
         prev.map((ann) => {
           if (ann.id !== id) return ann;
           // Remove old from same-value map
-          const oldKey = `${ann.className}:${ann.originalText}`;
+          const oldKey = sameValueKey(ann.className, ann.originalText);
           sameValueMap.current.delete(oldKey);
 
           const newTag = getNextTag(newCls.name);
-          const newKey = `${newCls.name}:${ann.originalText}`;
+          const newKey = sameValueKey(newCls.name, ann.originalText);
           sameValueMap.current.set(newKey, newTag);
 
           return {
@@ -276,10 +358,10 @@ export function useAnnotationWorkspace(jobId: string) {
     setAnnotations((prev) => {
       const ann = prev.find((a) => a.id === id);
       if (ann) {
-        const key = `${ann.className}:${ann.originalText}`;
+        const key = sameValueKey(ann.className, ann.originalText);
         // Only remove from map if this is the last annotation with that key+tag
         const remaining = prev.filter(
-          (a) => a.id !== id && `${a.className}:${a.originalText}` === key,
+          (a) => a.id !== id && sameValueKey(a.className, a.originalText) === key,
         );
         if (remaining.length === 0) {
           sameValueMap.current.delete(key);
@@ -289,6 +371,36 @@ export function useAnnotationWorkspace(jobId: string) {
     });
     setIsDirty(true);
   }, []);
+
+  const reassignTag = useCallback((annotationId: string, newTag: string) => {
+    setAnnotations((prev) =>
+      prev.map((ann) => {
+        if (ann.id !== annotationId) return ann;
+        const key = sameValueKey(ann.className, ann.originalText);
+        sameValueMap.current.set(key, newTag);
+        return { ...ann, tag: newTag };
+      }),
+    );
+    setIsDirty(true);
+  }, []);
+
+  const getExistingTagsForClass = useCallback(
+    (className: string, excludeTag: string): { tag: string; sampleText: string }[] => {
+      const tagMap = new Map<string, string>();
+      for (const ann of annotations) {
+        if (ann.className !== className) continue;
+        if (ann.tag === excludeTag) continue;
+        if (!tagMap.has(ann.tag)) {
+          tagMap.set(ann.tag, ann.originalText);
+        }
+      }
+      return Array.from(tagMap.entries()).map(([tag, sampleText]) => ({
+        tag,
+        sampleText,
+      }));
+    },
+    [annotations],
+  );
 
   const saveDraft = useCallback(async () => {
     await saveDraftMutation.mutateAsync({ jobId, annotations });
@@ -349,6 +461,8 @@ export function useAnnotationWorkspace(jobId: string) {
     handleSameValueDecision,
     editAnnotation,
     deleteAnnotation,
+    reassignTag,
+    getExistingTagsForClass,
     sameValueLinkingEnabled,
     setSameValueLinkingEnabled,
     saveDraft,

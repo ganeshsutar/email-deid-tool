@@ -50,7 +50,7 @@ export function AnnotationClassesTable({
               <TableRow key={cls.id}>
                 <TableCell>
                   <span
-                    className="inline-block h-5 w-5 rounded border"
+                    className="inline-block h-5 w-5 rounded border align-middle"
                     style={{ backgroundColor: cls.color }}
                   />
                 </TableCell>

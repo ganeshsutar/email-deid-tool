@@ -77,6 +77,7 @@ export function LoginForm() {
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
+            data-testid="login-email"
             type="email"
             placeholder="you@example.com"
             value={email}
@@ -97,13 +98,19 @@ export function LoginForm() {
           </div>
           <Input
             id="password"
+            data-testid="login-password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={isDisabled}>
+        <Button
+          type="submit"
+          data-testid="login-submit"
+          className="w-full"
+          disabled={isDisabled}
+        >
           {isLoading ? "Signing in..." : "Sign In"}
         </Button>
       </form>
