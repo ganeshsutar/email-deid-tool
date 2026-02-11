@@ -212,19 +212,3 @@
   padding-right: 0.25rem;
 }
 
-/* HTML email content rendered via DOMPurify */
-.email-html-content {
-  overflow-x: auto;
-  word-break: break-word;
-}
-.email-html-content img {
-  max-width: 100%;
-  height: auto;
-}
-.email-html-content a {
-  color: var(--primary);
-  text-decoration: underline;
-}
-.email-html-content table {
-  max-width: 100%;
-}

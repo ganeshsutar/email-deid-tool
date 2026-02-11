@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useJobRawContent } from "@/features/datasets/api/get-job-raw-content";
 import { DatasetStatusCards } from "@/features/datasets/components/dataset-status-cards";
 import { DatasetJobsTable } from "@/features/datasets/components/dataset-jobs-table";
 import { StatusBadge } from "@/features/datasets/components/status-badge";
+import { apiClient } from "@/lib/api-client";
 import { EmailViewer } from "@/components/email-viewer";
 import { RawContentViewer } from "@/components/raw-content-viewer";
 import { useVersionHistory } from "@/features/version-history/api/get-version-history";
@@ -103,6 +104,21 @@ function DatasetDetailPage() {
     },
     [historyData],
   );
+
+  const handleDownloadEml = useCallback(async (jobId: string, fileName: string) => {
+    const response = await apiClient.get<string>(`/jobs/${jobId}/raw-content/`, {
+      transformResponse: [(data: string) => data],
+    });
+    const blob = new Blob([response.data], { type: "message/rfc822" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
 
   const handleDialogClose = useCallback((open: boolean) => {
     if (!open) {
@@ -199,6 +215,7 @@ function DatasetDetailPage() {
               onSelectionChange={setSelectedJobIds}
               onJobClick={handleJobClick}
               onHistoryClick={handleHistoryClick}
+              onDownloadClick={handleDownloadEml}
             />
           </div>
           <div data-testid="dataset-jobs-pagination">
@@ -219,14 +236,29 @@ function DatasetDetailPage() {
       <Dialog open={!!dialogJobId} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col" data-testid="email-viewer-dialog">
           <DialogHeader>
-            <DialogTitle>
-              {dialogJob?.fileName ?? "Email Preview"}
-            </DialogTitle>
-            <DialogDescription>
-              {dialogJob
-                ? `Status: ${dialogJob.status.replace(/_/g, " ").toLowerCase()}`
-                : "Loading..."}
-            </DialogDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <DialogTitle>
+                  {dialogJob?.fileName ?? "Email Preview"}
+                </DialogTitle>
+                <DialogDescription>
+                  {dialogJob
+                    ? `Status: ${dialogJob.status.replace(/_/g, " ").toLowerCase()}`
+                    : "Loading..."}
+                </DialogDescription>
+              </div>
+              {dialogJob && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownloadEml(dialogJob.id, dialogJob.fileName)}
+                  data-testid="dialog-download-button"
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  Download
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-y-auto">
             {rawContentLoading ? (

@@ -1,3 +1,5 @@
 .playwright-mcp/
 data/
 test-results/
+backups/
+*.dump

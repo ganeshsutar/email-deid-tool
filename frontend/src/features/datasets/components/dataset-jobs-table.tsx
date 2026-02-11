@@ -1,4 +1,4 @@
-import { Eye, FileText, History } from "lucide-react";
+import { Download, Eye, FileText, History } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,6 +25,7 @@ interface DatasetJobsTableProps {
   onSelectionChange: (ids: Set<string>) => void;
   onJobClick?: (jobId: string) => void;
   onHistoryClick?: (jobId: string) => void;
+  onDownloadClick?: (jobId: string, fileName: string) => void;
 }
 
 export function DatasetJobsTable({
@@ -33,6 +34,7 @@ export function DatasetJobsTable({
   onSelectionChange,
   onJobClick,
   onHistoryClick,
+  onDownloadClick,
 }: DatasetJobsTableProps) {
   const allSelected = jobs.length > 0 && jobs.every((j) => selectedIds.has(j.id));
 
@@ -73,7 +75,7 @@ export function DatasetJobsTable({
           <TableHead>Annotator</TableHead>
           <TableHead>QA</TableHead>
           <TableHead>Updated</TableHead>
-          <TableHead className="w-20" />
+          <TableHead className="w-28" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -145,6 +147,21 @@ export function DatasetJobsTable({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Version History</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onDownloadClick?.(job.id, job.fileName)}
+                          data-testid="job-download-button"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Download .eml</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>

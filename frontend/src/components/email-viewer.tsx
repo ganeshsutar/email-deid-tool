@@ -152,7 +152,6 @@ export function EmailViewer({ rawContent }: EmailViewerProps) {
         <SanitizedHtmlRenderer
           html={email.htmlBody}
           attachments={email.attachments}
-          className="email-html-content text-sm"
         />
       ) : (
         <div className="whitespace-pre-wrap text-sm">{email.body}</div>
