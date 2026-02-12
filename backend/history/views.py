@@ -91,7 +91,7 @@ class HistoryViewSet(ViewSet):
 
         annotations = version.annotations.select_related(
             "annotation_class"
-        ).order_by("start_offset")
+        ).order_by("section_index", "start_offset")
 
         return Response(AnnotationSerializer(annotations, many=True).data)
 

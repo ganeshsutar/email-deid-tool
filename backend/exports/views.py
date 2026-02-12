@@ -14,8 +14,12 @@ from rest_framework.viewsets import ViewSet
 
 from annotations.models import Annotation, AnnotationVersion
 from annotations.serializers import AnnotationSerializer
-from core.eml_normalizer import normalize_eml, re_encode_eml
 from core.permissions import IsAdmin
+from core.section_extractor import extract_sections
+from core.section_reassembler import (
+    deidentify_and_reassemble,
+    group_annotations_by_section,
+)
 from datasets.models import Dataset, Job
 
 from .models import ExportRecord
@@ -36,34 +40,28 @@ class ExportPagination(PageNumberPagination):
 class ExportViewSet(ViewSet):
     permission_classes = [IsAuthenticated, IsAdmin]
 
-    def _deidentify(self, raw_content, annotations):
-        """Replace annotated spans with [TAG] placeholders, processing from end to start.
+    def _deidentify_job(self, job):
+        """De-identify a job using section-based approach.
 
-        Annotation offsets are relative to \\r-stripped content (as created by the
-        frontend which strips \\r for DOM compatibility). This method adjusts offsets
-        to account for \\r characters in the original content so the exported file
-        preserves the original line endings.
+        Returns (deidentified_eml_str, annotations_list).
         """
-        # Build list of \r positions for offset adjustment
-        cr_positions = [i for i, c in enumerate(raw_content) if c == "\r"]
+        sections = extract_sections(job.eml_content)
+        latest_version = (
+            job.annotation_versions.order_by("-version_number").first()
+        )
+        if not latest_version:
+            return job.eml_content, []
 
-        def to_original_offset(stripped_offset):
-            extra = 0
-            for cr_pos in cr_positions:
-                if cr_pos <= stripped_offset + extra:
-                    extra += 1
-                else:
-                    break
-            return stripped_offset + extra
-
-        sorted_anns = sorted(annotations, key=lambda a: a.start_offset, reverse=True)
-        content = raw_content
-        for ann in sorted_anns:
-            tag = ann.tag or f"[{ann.class_name}]"
-            start = to_original_offset(ann.start_offset)
-            end = to_original_offset(ann.end_offset)
-            content = content[:start] + tag + content[end:]
-        return content
+        annotations = list(
+            latest_version.annotations.select_related(
+                "annotation_class"
+            ).order_by("section_index", "start_offset")
+        )
+        anns_by_section = group_annotations_by_section(annotations)
+        deidentified = deidentify_and_reassemble(
+            job.eml_content, sections, anns_by_section
+        )
+        return deidentified, annotations
 
     def list_datasets(self, request):
         datasets = (
@@ -151,36 +149,25 @@ class ExportViewSet(ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        normalized, _ = normalize_eml(job.eml_content)
-
-        latest_version = (
-            job.annotation_versions.order_by("-version_number").first()
-        )
-        if not latest_version:
-            return Response(
-                {
-                    "job_id": str(job.id),
-                    "file_name": job.file_name,
-                    "original": normalized,
-                    "deidentified": normalized,
-                    "annotations": [],
-                }
-            )
-
-        annotations = list(
-            latest_version.annotations.select_related("annotation_class").order_by(
-                "start_offset"
-            )
-        )
-        deidentified = self._deidentify(normalized, annotations)
+        deidentified, annotations = self._deidentify_job(job)
+        sections = extract_sections(job.eml_content)
 
         return Response(
             {
                 "job_id": str(job.id),
                 "file_name": job.file_name,
-                "original": normalized,
+                "original": job.eml_content,
                 "deidentified": deidentified,
                 "annotations": AnnotationSerializer(annotations, many=True).data,
+                "sections": [
+                    {
+                        "index": s.index,
+                        "type": s.section_type,
+                        "label": s.label,
+                        "content": s.content,
+                    }
+                    for s in sections
+                ],
             }
         )
 
@@ -251,23 +238,7 @@ class ExportViewSet(ViewSet):
                 if not job.eml_content:
                     continue
 
-                normalized, has_encoded = normalize_eml(job.eml_content)
-
-                latest_version = (
-                    job.annotation_versions.order_by("-version_number").first()
-                )
-                if latest_version:
-                    annotations = list(
-                        latest_version.annotations.select_related(
-                            "annotation_class"
-                        ).order_by("start_offset")
-                    )
-                    deidentified = self._deidentify(normalized, annotations)
-                else:
-                    deidentified = normalized
-
-                if has_encoded:
-                    deidentified = re_encode_eml(deidentified, job.eml_content)
+                deidentified, _ = self._deidentify_job(job)
 
                 short_id = str(job.id)[:8]
                 out_name = f"REDACTED_{short_id}_{job.file_name}"

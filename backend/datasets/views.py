@@ -13,7 +13,9 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from accounts.models import User
+from annotations.models import DraftAnnotation
 from core.permissions import IsAdmin
+from qa.models import QADraftReview
 
 from .models import Dataset, Job
 from .serializers import (
@@ -245,6 +247,72 @@ class DatasetViewSet(ViewSet):
 
 class JobViewSet(ViewSet):
     permission_classes = [IsAuthenticated, IsAdmin]
+
+    def destroy(self, request, pk=None):
+        try:
+            job = Job.objects.select_related("dataset").get(pk=pk)
+        except Job.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        force = request.query_params.get("force", "").lower() in ("true", "1")
+        if not force and job.status in (
+            Job.Status.ANNOTATION_IN_PROGRESS,
+            Job.Status.QA_IN_PROGRESS,
+        ):
+            return Response(
+                {
+                    "detail": "Job is currently in progress. Use ?force=true to delete anyway.",
+                    "in_progress": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dataset = job.dataset
+        with transaction.atomic():
+            job.delete()
+            dataset.file_count = dataset.jobs.count()
+            dataset.save(update_fields=["file_count"])
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="delete-bulk")
+    def delete_bulk(self, request):
+        job_ids = request.data.get("job_ids", [])
+        force = request.data.get("force", False)
+
+        if not job_ids:
+            return Response(
+                {"detail": "job_ids is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        jobs = Job.objects.filter(id__in=job_ids).select_related("dataset")
+
+        if not force:
+            in_progress_count = jobs.filter(
+                status__in=[
+                    Job.Status.ANNOTATION_IN_PROGRESS,
+                    Job.Status.QA_IN_PROGRESS,
+                ]
+            ).count()
+            if in_progress_count > 0:
+                return Response(
+                    {
+                        "detail": f"{in_progress_count} job(s) are currently in progress. Set force=true to delete anyway.",
+                        "in_progress_count": in_progress_count,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        with transaction.atomic():
+            dataset_ids = set(jobs.values_list("dataset_id", flat=True))
+            deleted_count = jobs.count()
+            jobs.delete()
+            for ds in Dataset.objects.filter(id__in=dataset_ids):
+                ds.file_count = ds.jobs.count()
+                ds.save(update_fields=["file_count"])
+
+        return Response({"deleted": deleted_count})
 
     def retrieve(self, request, pk=None):
         try:
@@ -588,3 +656,68 @@ class JobViewSet(ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return HttpResponse(job.eml_content, content_type="text/plain; charset=utf-8")
+
+    RESETTABLE_STATUSES = (
+        Job.Status.DELIVERED,
+        Job.Status.QA_ACCEPTED,
+        Job.Status.QA_REJECTED,
+    )
+
+    @action(detail=True, methods=["post"])
+    def reset(self, request, pk=None):
+        expected_status = request.data.get("expected_status")
+
+        with transaction.atomic():
+            try:
+                job = Job.objects.select_for_update().get(pk=pk)
+            except Job.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            if job.status not in self.RESETTABLE_STATUSES:
+                return Response(
+                    {"detail": f"Cannot reset job with status {job.status}."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if expected_status and job.status != expected_status:
+                return Response(
+                    {"detail": "Job status has changed.", "current_status": job.status},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            DraftAnnotation.objects.filter(job=job).delete()
+            QADraftReview.objects.filter(job=job).delete()
+
+            job.assigned_annotator = None
+            job.assigned_qa = None
+            job.status = Job.Status.UPLOADED
+            job.save(update_fields=["assigned_annotator", "assigned_qa", "status"])
+
+        return Response({"status": "reset"})
+
+    @action(detail=False, methods=["post"], url_path="reset-bulk")
+    def reset_bulk(self, request):
+        job_ids = request.data.get("job_ids", [])
+
+        if not job_ids:
+            return Response(
+                {"detail": "job_ids is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            jobs = Job.objects.select_for_update().filter(
+                id__in=job_ids, status__in=self.RESETTABLE_STATUSES
+            )
+            job_pks = list(jobs.values_list("pk", flat=True))
+
+            DraftAnnotation.objects.filter(job_id__in=job_pks).delete()
+            QADraftReview.objects.filter(job_id__in=job_pks).delete()
+
+            reset_count = jobs.update(
+                assigned_annotator=None,
+                assigned_qa=None,
+                status=Job.Status.UPLOADED,
+            )
+
+        return Response({"reset": reset_count})

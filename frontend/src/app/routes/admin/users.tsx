@@ -10,6 +10,7 @@ import { UsersTable } from "@/features/users/components/users-table";
 import { UsersFilters } from "@/features/users/components/users-filters";
 import { UserFormDialog } from "@/features/users/components/user-form-dialog";
 import { DeactivationConfirmDialog } from "@/features/users/components/deactivation-confirm-dialog";
+import { ChangePasswordDialog } from "@/features/users/components/change-password-dialog";
 import type { User } from "@/types/models";
 
 export const Route = createFileRoute("/admin/users")({
@@ -25,6 +26,7 @@ function UsersPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deactivatingUser, setDeactivatingUser] = useState<User | null>(null);
+  const [changingPasswordUser, setChangingPasswordUser] = useState<User | null>(null);
 
   const activateUser = useActivateUser();
 
@@ -59,6 +61,11 @@ function UsersPage() {
   function handleEdit(user: User) {
     setEditingUser(user);
     setFormOpen(true);
+  }
+
+  function handleChangePassword(user: User) {
+    setFormOpen(false);
+    setChangingPasswordUser(user);
   }
 
   function handleDeactivate(user: User) {
@@ -120,6 +127,7 @@ function UsersPage() {
         user={editingUser}
         onDeactivate={handleDeactivate}
         onActivate={handleActivate}
+        onChangePassword={handleChangePassword}
       />
 
       <DeactivationConfirmDialog
@@ -127,6 +135,12 @@ function UsersPage() {
         onOpenChange={(open) => !open && setDeactivatingUser(null)}
         user={deactivatingUser}
         onComplete={() => setDeactivatingUser(null)}
+      />
+
+      <ChangePasswordDialog
+        open={!!changingPasswordUser}
+        onOpenChange={(open) => !open && setChangingPasswordUser(null)}
+        user={changingPasswordUser}
       />
     </div>
   );

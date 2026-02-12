@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { getSelectionOffsets, splitTextAtAnnotations } from "@/lib/offset-utils";
 import type { WorkspaceAnnotation } from "@/types/models";
-import type { ContentViewMode } from "@/types/enums";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface RawContentViewerProps {
   content: string;
@@ -17,10 +15,6 @@ interface RawContentViewerProps {
   onAnnotationClick?: (annotation: WorkspaceAnnotation) => void;
   readOnly?: boolean;
   annotationStatuses?: Map<string, string>;
-  hasEncodedParts?: boolean;
-  contentViewMode?: ContentViewMode;
-  onContentViewModeChange?: (mode: ContentViewMode) => void;
-  isViewingOriginal?: boolean;
 }
 
 interface LineSegment {
@@ -37,19 +31,12 @@ export function RawContentViewer({
   onAnnotationClick,
   readOnly = false,
   annotationStatuses,
-  hasEncodedParts,
-  contentViewMode,
-  onContentViewModeChange,
-  isViewingOriginal,
 }: RawContentViewerProps) {
   const contentRef = useRef<HTMLPreElement>(null);
 
-  // When viewing original, don't show annotations (offsets don't match)
-  const effectiveAnnotations = isViewingOriginal ? [] : annotations;
-
   const segments = useMemo(
-    () => splitTextAtAnnotations(content, effectiveAnnotations),
-    [content, effectiveAnnotations],
+    () => splitTextAtAnnotations(content, annotations),
+    [content, annotations],
   );
 
   // Split segments at \n boundaries into per-line arrays
@@ -72,12 +59,12 @@ export function RawContentViewer({
   }, [segments]);
 
   const handleMouseUp = useCallback(() => {
-    if (readOnly || isViewingOriginal || !onTextSelect || !contentRef.current) return;
+    if (readOnly || !onTextSelect || !contentRef.current) return;
     const sel = getSelectionOffsets(contentRef.current);
     if (sel) {
       onTextSelect(sel);
     }
-  }, [readOnly, isViewingOriginal, onTextSelect]);
+  }, [readOnly, onTextSelect]);
 
   const getStatusIcon = useCallback(
     (annotationId: string) => {
@@ -132,30 +119,6 @@ export function RawContentViewer({
 
   return (
     <div className="flex h-full flex-col" data-testid="raw-content-viewer">
-      {hasEncodedParts && contentViewMode && onContentViewModeChange && (
-        <div className="flex items-center gap-2 border-b px-3 py-1.5 bg-muted/30">
-          <span className="text-xs text-muted-foreground">View:</span>
-          <ToggleGroup
-            type="single"
-            value={contentViewMode}
-            onValueChange={(val) => {
-              if (val) onContentViewModeChange(val as ContentViewMode);
-            }}
-            size="sm"
-            variant="outline"
-          >
-            <ToggleGroupItem value="DECODED" className="text-xs h-6 px-2">
-              Decoded
-            </ToggleGroupItem>
-            <ToggleGroupItem value="ORIGINAL" className="text-xs h-6 px-2">
-              Original
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {isViewingOriginal && (
-            <span className="text-xs text-amber-600">Read-only — annotations hidden</span>
-          )}
-        </div>
-      )}
       <ScrollArea className="flex-1 min-h-0">
         <pre
           ref={contentRef}

@@ -66,6 +66,14 @@ class CreateUserSerializer(serializers.Serializer):
         return value
 
 
+class AdminChangePasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_new_password(self, value):
+        validate_password(value, self.context.get("user"))
+        return value
+
+
 class UpdateUserSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=False)
     role = serializers.ChoiceField(choices=User.Role.choices, required=False)

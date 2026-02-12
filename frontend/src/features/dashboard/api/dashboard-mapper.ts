@@ -25,6 +25,9 @@ export interface QAPerformance {
   rejectedJobs: number;
   inReviewJobs: number;
   avgReviewTime: string | null;
+  assignedJobs: number;
+  completedJobs: number;
+  acceptanceRate: number | null;
 }
 
 export interface RecentDataset {
@@ -75,6 +78,9 @@ export function mapQAPerformance(
     rejectedJobs: data.rejected_jobs as number,
     inReviewJobs: data.in_review_jobs as number,
     avgReviewTime: data.avg_review_time as string | null,
+    assignedJobs: data.assigned_jobs as number,
+    completedJobs: data.completed_jobs as number,
+    acceptanceRate: data.acceptance_rate as number | null,
   };
 }
 

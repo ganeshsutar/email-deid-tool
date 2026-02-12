@@ -9,8 +9,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from annotations.models import Annotation, AnnotationVersion
-from core.eml_normalizer import normalize_eml
 from core.models import PlatformSetting
+from core.section_extractor import extract_sections
 from core.permissions import IsQA
 from datasets.models import Job
 from .models import QADraftReview, QAReviewVersion
@@ -106,11 +106,18 @@ class QAViewSet(ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         raw_content = job.eml_content
-        normalized_content, has_encoded_parts = normalize_eml(raw_content)
+        sections = extract_sections(raw_content)
         return Response({
             "raw_content": raw_content,
-            "normalized_content": normalized_content,
-            "has_encoded_parts": has_encoded_parts,
+            "sections": [
+                {
+                    "index": s.index,
+                    "type": s.section_type,
+                    "label": s.label,
+                    "content": s.content,
+                }
+                for s in sections
+            ],
         })
 
     def start_qa_review(self, request, job_id):
@@ -214,6 +221,7 @@ class QAViewSet(ViewSet):
                     annotation_class_id=ann["annotation_class"],
                     class_name=ann.get("class_name", ""),
                     tag=ann.get("tag", ""),
+                    section_index=ann.get("section_index", 0),
                     start_offset=ann["start_offset"],
                     end_offset=ann["end_offset"],
                     original_text=ann["original_text"],

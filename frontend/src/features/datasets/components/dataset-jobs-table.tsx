@@ -1,4 +1,4 @@
-import { Download, Eye, FileText, History } from "lucide-react";
+import { Download, Eye, FileText, History, RotateCcw, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,8 +16,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { JobStatus } from "@/types/enums";
 import type { Job } from "@/types/models";
 import { StatusBadge } from "./status-badge";
+
+const RESETTABLE_STATUSES: string[] = [
+  JobStatus.DELIVERED,
+  JobStatus.QA_ACCEPTED,
+  JobStatus.QA_REJECTED,
+];
 
 interface DatasetJobsTableProps {
   jobs: Job[];
@@ -26,6 +33,8 @@ interface DatasetJobsTableProps {
   onJobClick?: (jobId: string) => void;
   onHistoryClick?: (jobId: string) => void;
   onDownloadClick?: (jobId: string, fileName: string) => void;
+  onDeleteClick?: (jobId: string, fileName: string) => void;
+  onResetClick?: (jobId: string, fileName: string, status: string) => void;
 }
 
 export function DatasetJobsTable({
@@ -35,6 +44,8 @@ export function DatasetJobsTable({
   onJobClick,
   onHistoryClick,
   onDownloadClick,
+  onDeleteClick,
+  onResetClick,
 }: DatasetJobsTableProps) {
   const allSelected = jobs.length > 0 && jobs.every((j) => selectedIds.has(j.id));
 
@@ -75,7 +86,7 @@ export function DatasetJobsTable({
           <TableHead>Annotator</TableHead>
           <TableHead>QA</TableHead>
           <TableHead>Updated</TableHead>
-          <TableHead className="w-28" />
+          <TableHead className="w-36" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -162,6 +173,39 @@ export function DatasetJobsTable({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Download .eml</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {RESETTABLE_STATUSES.includes(job.status) && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onResetClick?.(job.id, job.fileName, job.status)}
+                            data-testid="job-reset-button"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Reset to Uploaded</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => onDeleteClick?.(job.id, job.fileName)}
+                          data-testid="job-delete-button"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete Job</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>

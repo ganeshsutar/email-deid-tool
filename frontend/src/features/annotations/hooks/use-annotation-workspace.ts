@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { AnnotationClass, WorkspaceAnnotation } from "@/types/models";
-import { ContentViewMode } from "@/types/enums";
+import type { AnnotationClass, EmailSection, WorkspaceAnnotation } from "@/types/models";
 import { useJobForAnnotation, useRawContent } from "../api/get-job-for-annotation";
 import { useDraft } from "../api/get-draft";
 import { useSaveDraft } from "../api/save-draft";
@@ -11,6 +10,7 @@ interface PendingSelection {
   text: string;
   start: number;
   end: number;
+  sectionIndex: number;
   cursorX: number;
   cursorY: number;
 }
@@ -69,15 +69,11 @@ export function useAnnotationWorkspace(jobId: string) {
   const [sameValuePrompt, setSameValuePrompt] = useState<SameValuePrompt | null>(null);
   const [activeRightTab, setActiveRightTab] = useState("preview");
   const [isDirty, setIsDirty] = useState(false);
-  const [contentViewMode, setContentViewMode] = useState<ContentViewMode>(ContentViewMode.DECODED);
   const [sameValueLinkingEnabled, setSameValueLinkingEnabled] = useState(true);
 
-  // Derived content values
-  const normalizedContent = (contentData?.normalizedContent ?? "").replace(/\r/g, "");
-  const originalContent = contentData?.rawContent ?? "";
-  const hasEncodedParts = contentData?.hasEncodedParts ?? false;
-  const isViewingOriginal = contentViewMode === ContentViewMode.ORIGINAL;
-  const displayContent = isViewingOriginal ? originalContent : normalizedContent;
+  // Section-based content
+  const sections: EmailSection[] = contentData?.sections ?? [];
+  const rawContent = contentData?.rawContent ?? "";
 
   const minAnnotationLength = job?.minAnnotationLength ?? 1;
 
@@ -162,8 +158,8 @@ export function useAnnotationWorkspace(jobId: string) {
   }
 
   const handleTextSelection = useCallback(
-    (text: string, start: number, end: number, cursorX: number, cursorY: number) => {
-      setPendingSelection({ text, start, end, cursorX, cursorY });
+    (text: string, start: number, end: number, sectionIndex: number, cursorX: number, cursorY: number) => {
+      setPendingSelection({ text, start, end, sectionIndex, cursorX, cursorY });
       setClassPopupPosition({ x: cursorX, y: cursorY });
       setClassPopupOpen(true);
     },
@@ -175,7 +171,7 @@ export function useAnnotationWorkspace(jobId: string) {
       if (!pendingSelection) return;
 
       setClassPopupOpen(false);
-      const { text, start, end } = pendingSelection;
+      const { text, start, end, sectionIndex } = pendingSelection;
 
       const validationError = validateAnnotationText(text);
       if (validationError) {
@@ -200,6 +196,7 @@ export function useAnnotationWorkspace(jobId: string) {
             classColor: cls.color,
             classDisplayLabel: cls.displayLabel,
             tag: newTag,
+            sectionIndex,
             startOffset: start,
             endOffset: end,
             originalText: text,
@@ -222,6 +219,7 @@ export function useAnnotationWorkspace(jobId: string) {
             className: cls.name,
             classColor: cls.color,
             classDisplayLabel: cls.displayLabel,
+            sectionIndex,
             startOffset: start,
             endOffset: end,
             originalText: text,
@@ -264,6 +262,7 @@ export function useAnnotationWorkspace(jobId: string) {
               className: cls.name,
               classColor: cls.color,
               classDisplayLabel: cls.displayLabel,
+              sectionIndex,
               startOffset: start,
               endOffset: end,
               originalText: text,
@@ -283,6 +282,7 @@ export function useAnnotationWorkspace(jobId: string) {
         classColor: cls.color,
         classDisplayLabel: cls.displayLabel,
         tag: newTag,
+        sectionIndex,
         startOffset: start,
         endOffset: end,
         originalText: text,
@@ -435,12 +435,8 @@ export function useAnnotationWorkspace(jobId: string) {
 
   return {
     job,
-    rawContent: normalizedContent,
-    displayContent,
-    hasEncodedParts,
-    contentViewMode,
-    setContentViewMode,
-    isViewingOriginal,
+    sections,
+    rawContent,
     isLoading: jobLoading || contentLoading,
     reworkInfo: job?.reworkInfo ?? null,
     annotations,

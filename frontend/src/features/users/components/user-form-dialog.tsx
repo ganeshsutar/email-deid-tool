@@ -24,6 +24,7 @@ interface UserFormDialogProps {
   user: User | null;
   onDeactivate: (user: User) => void;
   onActivate: (user: User) => void;
+  onChangePassword: (user: User) => void;
 }
 
 export function UserFormDialog({
@@ -32,6 +33,7 @@ export function UserFormDialog({
   user,
   onDeactivate,
   onActivate,
+  onChangePassword,
 }: UserFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -41,6 +43,7 @@ export function UserFormDialog({
           onOpenChange={onOpenChange}
           onDeactivate={onDeactivate}
           onActivate={onActivate}
+          onChangePassword={onChangePassword}
         />
       )}
     </Dialog>
@@ -52,6 +55,7 @@ function UserFormDialogContent({
   onOpenChange,
   onDeactivate,
   onActivate,
+  onChangePassword,
 }: Omit<UserFormDialogProps, "open">) {
   const isEdit = !!user;
   const createUser = useCreateUser();
@@ -182,6 +186,17 @@ function UserFormDialogContent({
         </div>
         <DialogFooter className="flex items-center justify-between sm:justify-between">
           <div>
+            {isEdit && (
+              <Button
+                type="button"
+                variant="link"
+                className="px-0"
+                onClick={() => onChangePassword(user)}
+                data-testid="user-change-password-button"
+              >
+                Reset Password
+              </Button>
+            )}
             {isEdit && user.status === UserStatus.ACTIVE && (
               <Button
                 type="button"

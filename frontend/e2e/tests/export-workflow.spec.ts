@@ -360,7 +360,7 @@ test.describe("8. Export & De-identification (Admin)", () => {
   // 8.3 Export Preview
   // ────────────────────────────────────────────────────────────────────────
 
-  test("8.3.1 — Select 1 job and click preview shows original and deidentified content", async () => {
+  test("8.3.1 — Select 1 job and click preview opens dialog with Email tab, switch to Text tab shows content", async () => {
     const checkboxes = sharedPage.getByTestId("job-export-checkbox");
     await checkboxes.first().click();
     await sharedPage.waitForTimeout(200);
@@ -368,6 +368,13 @@ test.describe("8. Export & De-identification (Admin)", () => {
     await sharedPage.getByTestId("preview-button").click();
 
     await expect(sharedPage.getByTestId("export-preview")).toBeVisible({ timeout: 10000 });
+
+    // Switch both panels to Text tab to see raw content
+    await sharedPage.getByTestId("original-text-tab").click();
+    await sharedPage.waitForTimeout(200);
+    await sharedPage.getByTestId("delivered-text-tab").click();
+    await sharedPage.waitForTimeout(200);
+
     await expect(sharedPage.getByTestId("original-content")).toBeVisible();
     await expect(sharedPage.getByTestId("deidentified-content")).toBeVisible();
 
@@ -389,8 +396,8 @@ test.describe("8. Export & De-identification (Admin)", () => {
     expect(originalText).not.toBe(deidentifiedText);
   });
 
-  test("8.3.4 — Click preview close hides preview", async () => {
-    await sharedPage.getByTestId("preview-close").click();
+  test("8.3.4 — Close dialog hides preview", async () => {
+    await sharedPage.getByRole("button", { name: "Close" }).click();
     await expect(sharedPage.getByTestId("export-preview")).not.toBeVisible();
 
     // Uncheck the job to reset state

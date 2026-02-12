@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
-import { RawContentViewer } from "@/components/raw-content-viewer";
+import { SectionedContentViewer } from "@/components/sectioned-content-viewer";
 import { useSetHeaderSlot } from "@/lib/header-slot";
 import { TagReassignmentDialog } from "@/features/annotations/components/tag-reassignment-dialog";
 import { AcceptDialog } from "./accept-dialog";
@@ -53,6 +53,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
     text: string;
     start: number;
     end: number;
+    sectionIndex: number;
   } | null>(null);
   const navigate = useNavigate();
 
@@ -193,7 +194,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
     );
   }
 
-  // Convert annotationStatuses to string map for RawContentViewer
+  // Convert annotationStatuses to string map for SectionedContentViewer
   const statusStringMap = new Map<string, string>();
   review.annotationStatuses.forEach((status, id) => {
     statusStringMap.set(id, status);
@@ -225,7 +226,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
     setToolbarAnnotation(ann);
   }
 
-  function handleTextSelect(sel: { text: string; start: number; end: number }) {
+  function handleTextSelect(sel: { text: string; start: number; end: number; sectionIndex: number }) {
     if (!review.editModeEnabled) return;
     setToolbarAnnotation(null);
     const selection = window.getSelection();
@@ -244,6 +245,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
         pendingTextSelection.text,
         pendingTextSelection.start,
         pendingTextSelection.end,
+        pendingTextSelection.sectionIndex,
         cls,
       );
       setPendingTextSelection(null);
@@ -283,18 +285,14 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize={60} minSize={30}>
             <div className="h-full" data-raw-content-container>
-              <RawContentViewer
-                content={review.displayContent}
+              <SectionedContentViewer
+                sections={review.sections}
                 annotations={review.currentAnnotations}
                 selectedAnnotationId={review.selectedAnnotationId}
-                onTextSelect={review.isViewingOriginal ? undefined : handleTextSelect}
-                onAnnotationClick={review.isViewingOriginal ? undefined : handleAnnotationClickInViewer}
+                onTextSelect={handleTextSelect}
+                onAnnotationClick={handleAnnotationClickInViewer}
                 readOnly={!review.editModeEnabled}
                 annotationStatuses={statusStringMap}
-                hasEncodedParts={review.hasEncodedParts}
-                contentViewMode={review.contentViewMode}
-                onContentViewModeChange={review.setContentViewMode}
-                isViewingOriginal={review.isViewingOriginal}
               />
             </div>
           </ResizablePanel>
@@ -313,9 +311,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
                 <TabsTrigger value="email">Email</TabsTrigger>
               </TabsList>
               <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
-                {review.rawContent && (
-                  <EmailPreview rawContent={review.rawContent} annotations={review.currentAnnotations} />
-                )}
+                <EmailPreview rawContent={review.rawContent} sections={review.sections} annotations={review.currentAnnotations} />
               </TabsContent>
               <TabsContent value="annotations" className="flex-1 min-h-0 m-0">
                 <AnnotationsReviewListTab

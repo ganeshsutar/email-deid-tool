@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AnnotationClass, WorkspaceAnnotation } from "@/types/models";
-import { AnnotationQAStatus, ContentViewMode } from "@/types/enums";
+import type { AnnotationClass, EmailSection, WorkspaceAnnotation } from "@/types/models";
+import { AnnotationQAStatus } from "@/types/enums";
 import {
   useJobForQAReview,
   useQARawContent,
@@ -32,14 +32,10 @@ export function useQAReview(jobId: string) {
   const [activeRightTab, setActiveRightTab] = useState("preview");
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string>();
   const [isDirty, setIsDirty] = useState(false);
-  const [contentViewMode, setContentViewMode] = useState<ContentViewMode>(ContentViewMode.DECODED);
 
-  // Derived content values
-  const normalizedContent = (contentData?.normalizedContent ?? "").replace(/\r/g, "");
-  const originalContent = contentData?.rawContent ?? "";
-  const hasEncodedParts = contentData?.hasEncodedParts ?? false;
-  const isViewingOriginal = contentViewMode === ContentViewMode.ORIGINAL;
-  const displayContent = isViewingOriginal ? originalContent : normalizedContent;
+  // Section-based content
+  const sections: EmailSection[] = contentData?.sections ?? [];
+  const rawContent = contentData?.rawContent ?? "";
 
   // Tag counter for QA-added annotations
   const tagCounterMap = useRef(new Map<string, number>());
@@ -205,7 +201,7 @@ export function useQAReview(jobId: string) {
   }, []);
 
   const addAnnotation = useCallback(
-    (text: string, start: number, end: number, cls: AnnotationClass) => {
+    (text: string, start: number, end: number, sectionIndex: number, cls: AnnotationClass) => {
       const tag = getNextTag(cls.name);
       const newAnn: WorkspaceAnnotation = {
         id: crypto.randomUUID(),
@@ -214,6 +210,7 @@ export function useQAReview(jobId: string) {
         classColor: cls.color,
         classDisplayLabel: cls.displayLabel,
         tag,
+        sectionIndex,
         startOffset: start,
         endOffset: end,
         originalText: text,
@@ -352,12 +349,8 @@ export function useQAReview(jobId: string) {
 
   return {
     job,
-    rawContent: normalizedContent,
-    displayContent,
-    hasEncodedParts,
-    contentViewMode,
-    setContentViewMode,
-    isViewingOriginal,
+    sections,
+    rawContent,
     annotatorInfo: job?.annotatorInfo ?? null,
     isLoading: jobLoading || contentLoading || draftLoading,
     blindReviewEnabled,

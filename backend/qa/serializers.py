@@ -91,6 +91,7 @@ class AcceptAnnotationSerializer(serializers.Serializer):
             required_fields = [
                 "annotation_class",
                 "tag",
+                "section_index",
                 "start_offset",
                 "end_offset",
                 "original_text",

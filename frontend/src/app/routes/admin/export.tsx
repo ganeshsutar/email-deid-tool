@@ -21,7 +21,7 @@ import { useExportHistory } from "@/features/export/api/get-export-history";
 import { useCreateExport } from "@/features/export/api/create-export";
 import { DeliveredJobsTable } from "@/features/export/components/delivered-jobs-table";
 import { ExportControls } from "@/features/export/components/export-controls";
-import { ExportPreview } from "@/features/export/components/export-preview";
+import { ExportPreviewDialog } from "@/features/export/components/export-preview";
 import { ExportHistoryTable } from "@/features/export/components/export-history-table";
 
 export const Route = createFileRoute("/admin/export")({
@@ -147,9 +147,12 @@ function ExportPage() {
 
       {/* Preview */}
       {preview && (
-        <ExportPreview
+        <ExportPreviewDialog
           data={preview}
-          onClose={() => setPreviewJobId(null)}
+          open
+          onOpenChange={(open) => {
+            if (!open) setPreviewJobId(null);
+          }}
         />
       )}
 

@@ -111,7 +111,15 @@ export interface WorkspaceAnnotation {
   classColor: string;
   classDisplayLabel: string;
   tag: string;
+  sectionIndex: number;
   startOffset: number;
   endOffset: number;
   originalText: string;
+}
+
+export interface EmailSection {
+  index: number;
+  type: string; // "HEADERS" | "TEXT_PLAIN" | "TEXT_HTML"
+  label: string;
+  content: string;
 }

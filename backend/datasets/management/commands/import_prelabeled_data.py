@@ -10,7 +10,7 @@ from django.db import transaction
 
 from accounts.models import User
 from annotations.models import Annotation, AnnotationVersion
-from core.eml_normalizer import build_raw_to_normalized_offset_map
+from core.section_extractor import extract_sections
 from core.models import AnnotationClass
 from datasets.models import Dataset, Job
 
@@ -237,8 +237,8 @@ class Command(BaseCommand):
         except UnicodeDecodeError:
             eml_text = raw_bytes.decode("latin-1")
 
-        # Build offset mapping from raw-stripped to normalized-stripped coordinates
-        norm_stripped, map_fn = build_raw_to_normalized_offset_map(eml_text)
+        # Extract sections for section-based offsets
+        sections = extract_sections(eml_text)
         raw_stripped = eml_text.replace("\r", "")
         file_name = f"{asset_name}.eml"
 
@@ -251,13 +251,19 @@ class Command(BaseCommand):
                 seen.add(key)
                 unique_entities.append(entity)
 
-        # Parse and validate entities
+        # Sort entities by offset for sequential text matching
+        unique_entities.sort(key=lambda e: e["BeginOffset"])
+
+        # Track search positions per section for sequential matching
+        search_positions = {s.index: 0 for s in sections}
+
+        # Parse and validate entities, mapping to section-based offsets
         annotation_records = []
         for entity in unique_entities:
-            start = entity["BeginOffset"]
-            end = entity["EndOffset"]
             text = entity["Text"]
             entity_type = entity["Type"]
+            raw_start = entity["BeginOffset"]
+            raw_end = entity["EndOffset"]
 
             # Parse type: EMAIL_ADDRESS_1 → class_name=email_address, tag=email_address_1
             type_match = TYPE_RE.match(entity_type)
@@ -268,29 +274,47 @@ class Command(BaseCommand):
                 class_name = entity_type.lower()
                 tag = f"[{entity_type.lower()}]"
 
-            # Pre-check: validate offsets against raw content (confirms JSON data)
-            raw_text = raw_stripped[start:end]
+            # Pre-check: validate text against raw content
+            raw_text = raw_stripped[raw_start:raw_end]
             if raw_text != text:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"    RAW MISMATCH in {file_name} at [{start}:{end}]: "
+                        f"    RAW MISMATCH in {file_name} at [{raw_start}:{raw_end}]: "
                         f"expected {text!r}, got {raw_text!r}"
                     )
                 )
 
-            # Map offsets from raw-stripped to normalized-stripped coordinates
-            mapped_start = map_fn(start)
-            mapped_end = map_fn(end)
+            # Find text in sections using sequential search
+            section_index = None
+            local_start = None
+            local_end = None
 
-            # Validate mapped offsets against normalized content
-            norm_text = norm_stripped[mapped_start:mapped_end]
-            if norm_text != text:
+            for section in sections:
+                pos = section.content.find(text, search_positions[section.index])
+                if pos != -1:
+                    section_index = section.index
+                    local_start = pos
+                    local_end = pos + len(text)
+                    search_positions[section.index] = local_end
+                    break
+
+            # Fallback: search from beginning of all sections
+            if section_index is None:
+                for section in sections:
+                    pos = section.content.find(text)
+                    if pos != -1:
+                        section_index = section.index
+                        local_start = pos
+                        local_end = pos + len(text)
+                        break
+
+            if section_index is None:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"    MISMATCH in {file_name} at [{mapped_start}:{mapped_end}] "
-                        f"(raw [{start}:{end}]): expected {text!r}, got {norm_text!r}"
+                        f"    UNMAPPED in {file_name}: {text!r} not found in any section"
                     )
                 )
+                continue
 
             # Get or create annotation class
             if class_name not in class_cache:
@@ -312,8 +336,9 @@ class Command(BaseCommand):
             annotation_records.append({
                 "class_name": class_name,
                 "tag": tag,
-                "start_offset": mapped_start,
-                "end_offset": mapped_end,
+                "section_index": section_index,
+                "start_offset": local_start,
+                "end_offset": local_end,
                 "original_text": text,
                 "annotation_class": class_cache.get(class_name),
             })
@@ -352,6 +377,7 @@ class Command(BaseCommand):
                     annotation_class=rec["annotation_class"],
                     class_name=rec["class_name"],
                     tag=rec["tag"],
+                    section_index=rec["section_index"],
                     start_offset=rec["start_offset"],
                     end_offset=rec["end_offset"],
                     original_text=rec["original_text"],

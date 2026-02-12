@@ -15,6 +15,7 @@ from datasets.models import Job
 
 from .models import User
 from .serializers import (
+    AdminChangePasswordSerializer,
     ChangePasswordSerializer,
     CreateUserSerializer,
     ForgotPasswordSerializer,
@@ -206,6 +207,22 @@ class UserViewSet(ViewSet):
         user.is_active = True
         user.status = User.Status.ACTIVE
         user.save(update_fields=["is_active", "status"])
+        return Response(UserSerializer(user).data)
+
+    @action(detail=True, methods=["post"], url_path="change-password")
+    def change_password(self, request, pk=None):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdminChangePasswordSerializer(
+            data=request.data, context={"user": user}
+        )
+        serializer.is_valid(raise_exception=True)
+        user.set_password(serializer.validated_data["new_password"])
+        user.force_password_change = True
+        user.save(update_fields=["password", "force_password_change"])
         return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["get"])

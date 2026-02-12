@@ -34,6 +34,7 @@ class Annotation(models.Model):
     )
     class_name = models.CharField(max_length=100)
     tag = models.CharField(max_length=100, blank=True, default="")
+    section_index = models.IntegerField(default=0)
     start_offset = models.IntegerField()
     end_offset = models.IntegerField()
     original_text = models.TextField()

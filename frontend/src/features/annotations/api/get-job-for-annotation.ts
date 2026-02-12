@@ -14,8 +14,7 @@ async function getJobForAnnotation(
 
 export interface RawContentResponse {
   rawContent: string;
-  normalizedContent: string;
-  hasEncodedParts: boolean;
+  sections: import("@/types/models").EmailSection[];
 }
 
 async function getRawContent(jobId: string): Promise<RawContentResponse> {
@@ -24,8 +23,7 @@ async function getRawContent(jobId: string): Promise<RawContentResponse> {
   );
   return {
     rawContent: response.data.raw_content,
-    normalizedContent: response.data.normalized_content,
-    hasEncodedParts: response.data.has_encoded_parts,
+    sections: response.data.sections as import("@/types/models").EmailSection[],
   };
 }
 

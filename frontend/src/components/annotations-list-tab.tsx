@@ -27,7 +27,7 @@ export function AnnotationsListTab({
   showActions = true,
 }: AnnotationsListTabProps) {
   const sorted = [...annotations].sort(
-    (a, b) => a.startOffset - b.startOffset,
+    (a, b) => a.sectionIndex - b.sectionIndex || a.startOffset - b.startOffset,
   );
 
   return (
@@ -39,6 +39,7 @@ export function AnnotationsListTab({
               <TableHead className="w-24">Tag</TableHead>
               <TableHead className="w-32">Class</TableHead>
               <TableHead>Text</TableHead>
+              <TableHead className="w-10 text-right">Sec</TableHead>
               <TableHead className="w-16 text-right">Start</TableHead>
               <TableHead className="w-16 text-right">End</TableHead>
               {showActions && <TableHead className="w-20">Actions</TableHead>}
@@ -48,7 +49,7 @@ export function AnnotationsListTab({
             {sorted.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={showActions ? 6 : 5}
+                  colSpan={showActions ? 7 : 6}
                   className="text-center text-muted-foreground py-8"
                 >
                   No annotations yet
@@ -81,6 +82,9 @@ export function AnnotationsListTab({
                     title={ann.originalText}
                   >
                     {ann.originalText}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">
+                    {ann.sectionIndex}
                   </TableCell>
                   <TableCell className="text-right text-xs">
                     {ann.startOffset}

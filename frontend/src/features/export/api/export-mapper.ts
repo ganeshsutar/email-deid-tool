@@ -1,4 +1,4 @@
-import type { WorkspaceAnnotation } from "@/types/models";
+import type { EmailSection, WorkspaceAnnotation } from "@/types/models";
 
 export interface ExportDataset {
   id: string;
@@ -31,6 +31,7 @@ export interface ExportPreview {
   original: string;
   deidentified: string;
   annotations: WorkspaceAnnotation[];
+  sections: EmailSection[];
 }
 
 function mapServerAnnotation(
@@ -43,6 +44,7 @@ function mapServerAnnotation(
     classColor: data.class_color as string,
     classDisplayLabel: data.class_display_label as string,
     tag: data.tag as string,
+    sectionIndex: (data.section_index as number) ?? 0,
     startOffset: data.start_offset as number,
     endOffset: data.end_offset as number,
     originalText: data.original_text as string,
@@ -101,5 +103,11 @@ export function mapExportPreview(
     annotations: (data.annotations as Record<string, unknown>[]).map(
       mapServerAnnotation,
     ),
+    sections: (data.sections as Array<Record<string, unknown>>).map((s) => ({
+      index: s.index as number,
+      type: s.type as string,
+      label: s.label as string,
+      content: s.content as string,
+    })),
   };
 }

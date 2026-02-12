@@ -38,6 +38,7 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
               <TableHead>Name</TableHead>
               <TableHead>Upload Date</TableHead>
               <TableHead className="text-right">Files</TableHead>
+              <TableHead className="text-right">Delivered</TableHead>
               <TableHead className="w-[200px]">Progress</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -46,7 +47,7 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
             {datasets.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center text-muted-foreground h-24"
                 >
                   No datasets yet
@@ -65,6 +66,9 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {ds.fileCount}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {delivered}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

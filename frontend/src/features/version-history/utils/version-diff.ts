@@ -23,7 +23,7 @@ export function computeVersionDiff(
   versionA: VersionAnnotation[],
   versionB: VersionAnnotation[],
 ): DiffResult {
-  const keyFn = (a: VersionAnnotation) => `${a.startOffset}-${a.endOffset}`;
+  const keyFn = (a: VersionAnnotation) => `${a.sectionIndex}-${a.startOffset}-${a.endOffset}`;
 
   const mapA = new Map<string, VersionAnnotation>();
   for (const ann of versionA) {

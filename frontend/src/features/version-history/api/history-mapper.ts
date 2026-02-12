@@ -70,6 +70,7 @@ export function mapVersionAnnotation(
     classColor: data.class_color as string,
     classDisplayLabel: data.class_display_label as string,
     tag: data.tag as string,
+    sectionIndex: (data.section_index as number) ?? 0,
     startOffset: data.start_offset as number,
     endOffset: data.end_offset as number,
     originalText: data.original_text as string,

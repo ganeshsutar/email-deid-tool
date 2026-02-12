@@ -375,7 +375,8 @@ function findParts(parts: MimePart[]): FindPartsResult {
     const ct = (part.headers["content-type"] || "").toLowerCase();
     if (ct.includes("multipart/")) {
       // Recurse into nested multipart
-      const nestedBoundary = ct.match(/boundary="?([^";\s]+)"?/i);
+      const originalCt = part.headers["content-type"] || "";
+      const nestedBoundary = originalCt.match(/boundary="?([^";\s]+)"?/i);
       if (nestedBoundary) {
         const nestedParts = parseMultipart(part.body, nestedBoundary[1]);
         const found = findParts(nestedParts);

@@ -111,26 +111,47 @@ class DashboardViewSet(ViewSet):
         return Response(result)
 
     def qa_performance(self, request):
+        completed_statuses = [
+            Job.Status.QA_ACCEPTED,
+            Job.Status.QA_REJECTED,
+            Job.Status.DELIVERED,
+        ]
+
         qa_users = User.objects.filter(
             role=User.Role.QA, status=User.Status.ACTIVE
         ).annotate(
-            reviewed_jobs=Count("qa_reviews"),
+            reviewed_jobs=Count("qa_reviews", distinct=True),
             accepted_jobs=Count(
                 "qa_reviews",
                 filter=Q(qa_reviews__decision=QAReviewVersion.Decision.ACCEPT),
+                distinct=True,
             ),
             rejected_jobs=Count(
                 "qa_reviews",
                 filter=Q(qa_reviews__decision=QAReviewVersion.Decision.REJECT),
+                distinct=True,
             ),
             in_review_jobs=Count(
                 "qa_jobs",
                 filter=Q(qa_jobs__status=Job.Status.QA_IN_PROGRESS),
+                distinct=True,
+            ),
+            assigned_jobs=Count("qa_jobs", distinct=True),
+            completed_jobs=Count(
+                "qa_jobs",
+                filter=Q(qa_jobs__status__in=completed_statuses),
+                distinct=True,
             ),
         )
 
         result = []
         for user in qa_users:
+            total_decided = user.accepted_jobs + user.rejected_jobs
+            acceptance_rate = (
+                round((user.accepted_jobs / total_decided) * 100, 1)
+                if total_decided > 0
+                else None
+            )
             result.append(
                 {
                     "id": str(user.id),
@@ -140,6 +161,9 @@ class DashboardViewSet(ViewSet):
                     "rejected_jobs": user.rejected_jobs,
                     "in_review_jobs": user.in_review_jobs,
                     "avg_review_time": None,
+                    "assigned_jobs": user.assigned_jobs,
+                    "completed_jobs": user.completed_jobs,
+                    "acceptance_rate": acceptance_rate,
                 }
             )
         return Response(result)

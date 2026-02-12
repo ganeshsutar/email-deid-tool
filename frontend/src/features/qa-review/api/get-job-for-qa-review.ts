@@ -9,16 +9,14 @@ async function getJobForQAReview(jobId: string): Promise<QAJobResponse> {
 
 export interface QARawContentResponse {
   rawContent: string;
-  normalizedContent: string;
-  hasEncodedParts: boolean;
+  sections: import("@/types/models").EmailSection[];
 }
 
 async function getQARawContent(jobId: string): Promise<QARawContentResponse> {
   const response = await apiClient.get(`/qa/jobs/${jobId}/raw-content/`);
   return {
     rawContent: response.data.raw_content,
-    normalizedContent: response.data.normalized_content,
-    hasEncodedParts: response.data.has_encoded_parts,
+    sections: response.data.sections as import("@/types/models").EmailSection[],
   };
 }
 

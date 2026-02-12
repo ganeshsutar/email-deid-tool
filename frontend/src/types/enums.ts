@@ -45,12 +45,12 @@ export const QADecision = {
 } as const;
 export type QADecision = (typeof QADecision)[keyof typeof QADecision];
 
-export const ContentViewMode = {
-  DECODED: "DECODED",
-  ORIGINAL: "ORIGINAL",
+export const SectionType = {
+  HEADERS: "HEADERS",
+  TEXT_PLAIN: "TEXT_PLAIN",
+  TEXT_HTML: "TEXT_HTML",
 } as const;
-export type ContentViewMode =
-  (typeof ContentViewMode)[keyof typeof ContentViewMode];
+export type SectionType = (typeof SectionType)[keyof typeof SectionType];
 
 export const AnnotationQAStatus = {
   PENDING: "PENDING",

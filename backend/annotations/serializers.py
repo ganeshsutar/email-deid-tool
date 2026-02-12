@@ -15,6 +15,7 @@ class AnnotationSerializer(serializers.ModelSerializer):
             "annotation_class",
             "class_name",
             "tag",
+            "section_index",
             "start_offset",
             "end_offset",
             "original_text",
@@ -119,6 +120,7 @@ class SubmitAnnotationSerializer(serializers.Serializer):
             required_fields = [
                 "annotation_class",
                 "tag",
+                "section_index",
                 "start_offset",
                 "end_offset",
                 "original_text",

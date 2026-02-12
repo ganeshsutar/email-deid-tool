@@ -33,7 +33,7 @@ import { AnnotationsListTab } from "@/components/annotations-list-tab";
 import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
-import { RawContentViewer } from "@/components/raw-content-viewer";
+import { SectionedContentViewer } from "@/components/sectioned-content-viewer";
 import { SameValueLinkingDialog } from "@/components/same-value-linking-dialog";
 import { JobStatus } from "@/types/enums";
 import { useSetHeaderSlot } from "@/lib/header-slot";
@@ -173,7 +173,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
     }
   }
 
-  function handleTextSelect(sel: { text: string; start: number; end: number }) {
+  function handleTextSelect(sel: { text: string; start: number; end: number; sectionIndex: number }) {
     // Get cursor position for popup placement
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -183,6 +183,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
         sel.text,
         sel.start,
         sel.end,
+        sel.sectionIndex,
         rect.left + rect.width / 2,
         rect.bottom + 4,
       );
@@ -220,11 +221,11 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
         <ResizablePanelGroup orientation="horizontal">
           <ResizablePanel defaultSize={60} minSize={30}>
             <div className="h-full" data-raw-content-container>
-              <RawContentViewer
-                content={workspace.displayContent}
+              <SectionedContentViewer
+                sections={workspace.sections}
                 annotations={workspace.annotations}
                 selectedAnnotationId={workspace.selectedAnnotationId}
-                onTextSelect={isReadOnly || workspace.isViewingOriginal ? undefined : handleTextSelect}
+                onTextSelect={isReadOnly ? undefined : handleTextSelect}
                 onAnnotationClick={(ann) => {
                   workspace.setSelectedAnnotationId(ann.id);
                   if (!isReadOnly) {
@@ -242,10 +243,6 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
                     setToolbarAnnotation(ann);
                   }
                 }}
-                hasEncodedParts={workspace.hasEncodedParts}
-                contentViewMode={workspace.contentViewMode}
-                onContentViewModeChange={workspace.setContentViewMode}
-                isViewingOriginal={workspace.isViewingOriginal}
               />
             </div>
           </ResizablePanel>
@@ -265,9 +262,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
                 <TabsTrigger value="email" data-testid="email-preview-tab">Email</TabsTrigger>
               </TabsList>
               <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
-                {workspace.rawContent && (
-                  <EmailPreview rawContent={workspace.rawContent} annotations={workspace.annotations} />
-                )}
+                <EmailPreview rawContent={workspace.rawContent} sections={workspace.sections} annotations={workspace.annotations} />
               </TabsContent>
               <TabsContent value="annotations" className="flex-1 min-h-0 m-0">
                 <AnnotationsListTab
