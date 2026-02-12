@@ -663,7 +663,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("annotations", "0002_section_index"),
-        ("qa", "0001_initial"),
+        ("qa", "0002_qadraftreview"),
         ("datasets", "0001_initial"),
     ]
 
