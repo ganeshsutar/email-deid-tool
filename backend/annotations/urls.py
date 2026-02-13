@@ -24,6 +24,10 @@ urlpatterns = [
         AnnotationViewSet.as_view({"post": "submit_annotation"}),
     ),
     path(
+        "jobs/<uuid:job_id>/discard/",
+        AnnotationViewSet.as_view({"post": "discard_job"}),
+    ),
+    path(
         "my-jobs/",
         AnnotationViewSet.as_view({"get": "my_jobs"}),
     ),

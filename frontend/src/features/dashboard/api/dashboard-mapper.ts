@@ -5,6 +5,7 @@ export interface DashboardStats {
   inProgress: number;
   delivered: number;
   awaitingQa: number;
+  discarded: number;
 }
 
 export interface AnnotatorPerformance {
@@ -50,6 +51,7 @@ export function mapDashboardStats(
     inProgress: data.in_progress as number,
     delivered: data.delivered as number,
     awaitingQa: data.awaiting_qa as number,
+    discarded: (data.discarded as number) ?? 0,
   };
 }
 

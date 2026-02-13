@@ -1,5 +1,4 @@
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 
 interface SaveQADraftParams {
@@ -14,8 +13,5 @@ async function saveQADraft({ jobId, data }: SaveQADraftParams): Promise<void> {
 export function useSaveQADraft() {
   return useMutation({
     mutationFn: saveQADraft,
-    onSuccess: () => {
-      toast.success("QA draft saved");
-    },
   });
 }

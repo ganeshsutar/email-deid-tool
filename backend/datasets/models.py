@@ -20,6 +20,7 @@ class Dataset(models.Model):
     upload_date = models.DateTimeField(auto_now_add=True)
     file_count = models.IntegerField(default=0)
     duplicate_count = models.IntegerField(default=0)
+    excluded_count = models.IntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.UPLOADING)
     error_message = models.TextField(blank=True, default="")
 
@@ -38,6 +39,7 @@ class Job(models.Model):
         QA_REJECTED = "QA_REJECTED", "QA Rejected"
         QA_ACCEPTED = "QA_ACCEPTED", "QA Accepted"
         DELIVERED = "DELIVERED", "Delivered"
+        DISCARDED = "DISCARDED", "Discarded"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     dataset = models.ForeignKey(Dataset, on_delete=models.CASCADE, related_name="jobs")
@@ -50,6 +52,10 @@ class Job(models.Model):
     )
     assigned_qa = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="qa_jobs"
+    )
+    discard_reason = models.CharField(max_length=255, blank=True, default="")
+    discarded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="discarded_jobs"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

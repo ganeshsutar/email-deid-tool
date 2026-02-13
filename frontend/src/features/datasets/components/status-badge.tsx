@@ -41,6 +41,10 @@ const JOB_STATUS_CONFIG: Record<
     label: "Delivered",
     className: "bg-emerald-100 text-emerald-700 border-emerald-200",
   },
+  [JobStatus.DISCARDED]: {
+    label: "Discarded",
+    className: "bg-slate-100 text-slate-700 border-slate-300",
+  },
 };
 
 const DATASET_STATUS_CONFIG: Record<

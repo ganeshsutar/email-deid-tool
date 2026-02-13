@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { toast } from "sonner";
+import { Check, ChevronsUpDown, Download } from "lucide-react";
 import {
   Card,
   CardAction,
@@ -8,13 +10,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ChartContainer,
   ChartTooltip,
@@ -23,6 +34,8 @@ import {
 } from "@/components/ui/chart";
 import { useJobStatusCounts } from "@/features/dashboard/api/get-job-status-counts";
 import { useDatasetOptions } from "@/features/dashboard/api/get-dataset-options";
+import { downloadJobCsv } from "@/features/dashboard/api/download-job-csv";
+import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Record<string, string> = {
   UPLOADED: "Uploaded",
@@ -34,6 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   QA_REJECTED: "Rejected",
   QA_ACCEPTED: "Accepted",
   DELIVERED: "Delivered",
+  DISCARDED: "Discarded",
 };
 
 const STATUS_ORDER = [
@@ -46,6 +60,7 @@ const STATUS_ORDER = [
   "QA_REJECTED",
   "QA_ACCEPTED",
   "DELIVERED",
+  "DISCARDED",
 ];
 
 const chartConfig = {
@@ -56,19 +71,52 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function JobStatusChart() {
-  const [datasetId, setDatasetId] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { data: datasets } = useDatasetOptions();
   const { data: statusCounts } = useJobStatusCounts(
-    datasetId === "all" ? {} : { datasetId },
+    selectedIds.length > 0 ? { datasetIds: selectedIds } : {},
   );
 
   const data = useMemo(() => {
     if (!statusCounts) return [];
     return STATUS_ORDER.map((status) => ({
       status: STATUS_LABELS[status] ?? status,
+      statusKey: status,
       count: statusCounts[status] ?? 0,
     }));
   }, [statusCounts]);
+
+  const nonZeroStatuses = useMemo(
+    () => data.filter((d) => d.count > 0),
+    [data],
+  );
+
+  const toggleDataset = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
+    );
+  };
+
+  const datasetLabel = useMemo(() => {
+    if (selectedIds.length === 0) return "All Datasets";
+    if (selectedIds.length === 1) {
+      const ds = datasets?.find((d) => d.id === selectedIds[0]);
+      return ds?.name ?? "1 Dataset";
+    }
+    return `${selectedIds.length} Datasets`;
+  }, [selectedIds, datasets]);
+
+  const handleDownload = async (status: string) => {
+    try {
+      await downloadJobCsv({
+        status,
+        datasetIds: selectedIds.length > 0 ? selectedIds : undefined,
+      });
+      toast.success("CSV downloaded successfully");
+    } catch {
+      toast.error("Failed to download CSV");
+    }
+  };
 
   return (
     <Card>
@@ -76,19 +124,80 @@ export function JobStatusChart() {
         <CardTitle>Job Status Distribution</CardTitle>
         <CardDescription>Current count of jobs by status</CardDescription>
         <CardAction>
-          <Select value={datasetId} onValueChange={setDatasetId}>
-            <SelectTrigger className="w-[160px]" size="sm">
-              <SelectValue placeholder="All Datasets" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Datasets</SelectItem>
-              {datasets?.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-[160px] justify-between"
+                >
+                  <span className="truncate">{datasetLabel}</span>
+                  <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="end">
+                <div
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent",
+                    selectedIds.length === 0 && "text-primary font-medium",
+                  )}
+                  onClick={() => setSelectedIds([])}
+                >
+                  {selectedIds.length === 0 && (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  <span
+                    className={cn(selectedIds.length > 0 && "ml-[22px]")}
+                  >
+                    All Datasets
+                  </span>
+                </div>
+                <div className="border-t" />
+                <ScrollArea className="max-h-[200px]">
+                  {datasets?.map((d) => (
+                    <label
+                      key={d.id}
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent"
+                    >
+                      <Checkbox
+                        checked={selectedIds.includes(d.id)}
+                        onCheckedChange={() => toggleDataset(d.id)}
+                      />
+                      <span className="text-sm truncate">{d.name}</span>
+                    </label>
+                  ))}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  disabled={nonZeroStatuses.length === 0}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="sr-only">Download CSV</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  Download CSV — {datasetLabel}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {nonZeroStatuses.map((item) => (
+                  <DropdownMenuItem
+                    key={item.statusKey}
+                    onClick={() => handleDownload(item.statusKey)}
+                  >
+                    {item.status} ({item.count})
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardAction>
       </CardHeader>
       <CardContent>

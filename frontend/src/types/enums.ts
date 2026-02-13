@@ -21,6 +21,7 @@ export const JobStatus = {
   QA_REJECTED: "QA_REJECTED",
   QA_ACCEPTED: "QA_ACCEPTED",
   DELIVERED: "DELIVERED",
+  DISCARDED: "DISCARDED",
 } as const;
 export type JobStatus = (typeof JobStatus)[keyof typeof JobStatus];
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Save, Send, X } from "lucide-react";
+import { Ban, Save, Send, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -34,12 +34,15 @@ import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
 import { SectionedContentViewer } from "@/components/sectioned-content-viewer";
+import { DiscardJobDialog } from "@/components/discard-job-dialog";
 import { SameValueLinkingDialog } from "@/components/same-value-linking-dialog";
 import { JobStatus } from "@/types/enums";
+import { useDiscardReasons } from "@/features/dashboard/api/get-discard-reasons-setting";
 import { useSetHeaderSlot } from "@/lib/header-slot";
 import { AnnotationActionToolbar } from "./annotation-action-toolbar";
 import { ReworkBanner } from "./rework-banner";
 import { TagReassignmentDialog } from "./tag-reassignment-dialog";
+import { AutosaveIndicator } from "@/components/autosave-indicator";
 import { useAnnotationWorkspace } from "../hooks/use-annotation-workspace";
 
 interface AnnotationWorkspaceProps {
@@ -49,7 +52,9 @@ interface AnnotationWorkspaceProps {
 export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
   const workspace = useAnnotationWorkspace(jobId);
   const { data: annotationClasses } = useAnnotationClasses();
+  const { data: discardReasonsData } = useDiscardReasons();
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [toolbarAnnotation, setToolbarAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
@@ -104,6 +109,18 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
         {!isReadOnly && (
           <>
             <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDiscardDialogOpen(true)}
+              disabled={workspace.isDiscarding}
+              data-testid="discard-button"
+            >
+              <Ban className="mr-1 h-4 w-4" />
+              Discard
+            </Button>
+            <AutosaveIndicator status={workspace.autosaveStatus} />
+            <Button
               variant="outline"
               size="sm"
               onClick={workspace.saveDraft}
@@ -126,7 +143,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
         )}
       </div>
     );
-  }, [workspace.job, workspace.isDirty, workspace.isSaving, workspace.isSubmitting, workspace.annotations.length, workspace.saveDraft, workspace.sameValueLinkingEnabled, workspace.setSameValueLinkingEnabled, navigate, isReadOnly]);
+  }, [workspace.job, workspace.isDirty, workspace.isSaving, workspace.isSubmitting, workspace.isDiscarding, workspace.annotations.length, workspace.saveDraft, workspace.sameValueLinkingEnabled, workspace.setSameValueLinkingEnabled, workspace.autosaveStatus, navigate, isReadOnly]);
 
   useSetHeaderSlot(headerBreadcrumb, headerActions);
 
@@ -355,6 +372,19 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
           onClose={() => setTagReassignAnnotation(null)}
         />
       )}
+
+      {/* Discard dialog */}
+      <DiscardJobDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+        reasons={discardReasonsData?.reasons ?? []}
+        isSubmitting={workspace.isDiscarding}
+        onConfirm={async (reason) => {
+          await workspace.discard(reason);
+          setDiscardDialogOpen(false);
+          navigate({ to: "/annotator/dashboard" });
+        }}
+      />
 
       {/* Submit confirmation */}
       <Dialog open={confirmSubmitOpen} onOpenChange={setConfirmSubmitOpen}>

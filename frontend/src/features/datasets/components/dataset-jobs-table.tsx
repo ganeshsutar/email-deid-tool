@@ -24,6 +24,7 @@ const RESETTABLE_STATUSES: string[] = [
   JobStatus.DELIVERED,
   JobStatus.QA_ACCEPTED,
   JobStatus.QA_REJECTED,
+  JobStatus.DISCARDED,
 ];
 
 interface DatasetJobsTableProps {

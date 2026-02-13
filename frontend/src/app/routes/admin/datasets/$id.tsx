@@ -20,6 +20,7 @@ import {
 } from "@/features/datasets/api/get-dataset";
 import { useJobsByDataset } from "@/features/datasets/api/get-jobs-by-dataset";
 import { useJobRawContent } from "@/features/datasets/api/get-job-raw-content";
+import { useJobAnnotatedContent } from "@/features/datasets/api/get-job-annotated-content";
 import { DatasetStatusCards } from "@/features/datasets/components/dataset-status-cards";
 import { DatasetJobsTable } from "@/features/datasets/components/dataset-jobs-table";
 import { StatusBadge } from "@/features/datasets/components/status-badge";
@@ -29,6 +30,13 @@ import { apiClient } from "@/lib/api-client";
 import { JobStatus } from "@/types/enums";
 import { EmailViewer } from "@/components/email-viewer";
 import { RawContentViewer } from "@/components/raw-content-viewer";
+import { SectionedContentViewer } from "@/components/sectioned-content-viewer";
+import { EmailPreview } from "@/components/email-preview";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { useVersionHistory } from "@/features/version-history/api/get-version-history";
 import { useJobInfo } from "@/features/version-history/api/get-job-info";
 import { VersionTimeline } from "@/features/version-history/components/version-timeline";
@@ -80,6 +88,7 @@ function DatasetDetailPage() {
   const { data: historyData, isLoading: historyLoading } =
     useVersionHistory(dialogJobId ?? "");
   const { data: jobInfo } = useJobInfo(dialogJobId ?? "");
+  const { data: annotatedContent } = useJobAnnotatedContent(dialogJobId);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -192,6 +201,7 @@ function DatasetDetailPage() {
     JobStatus.DELIVERED,
     JobStatus.QA_ACCEPTED,
     JobStatus.QA_REJECTED,
+    JobStatus.DISCARDED,
   ];
 
   const jobs = jobsData?.results ?? [];
@@ -365,6 +375,9 @@ function DatasetDetailPage() {
                 <TabsList className="w-fit">
                   <TabsTrigger value="email" data-testid="email-tab">Email</TabsTrigger>
                   <TabsTrigger value="raw" data-testid="raw-tab">Raw Content</TabsTrigger>
+                  {annotatedContent?.hasAnnotations && (
+                    <TabsTrigger value="annotated" data-testid="annotated-tab">Annotated</TabsTrigger>
+                  )}
                   <TabsTrigger value="history" data-testid="history-tab">History</TabsTrigger>
                 </TabsList>
                 <TabsContent value="email">
@@ -377,6 +390,27 @@ function DatasetDetailPage() {
                     readOnly
                   />
                 </TabsContent>
+                {annotatedContent?.hasAnnotations && (
+                  <TabsContent value="annotated" className="h-[65vh]">
+                    <ResizablePanelGroup orientation="horizontal">
+                      <ResizablePanel defaultSize={55} minSize={30}>
+                        <SectionedContentViewer
+                          sections={annotatedContent.sections}
+                          annotations={annotatedContent.annotations}
+                          readOnly
+                        />
+                      </ResizablePanel>
+                      <ResizableHandle withHandle />
+                      <ResizablePanel defaultSize={45} minSize={25}>
+                        <EmailPreview
+                          rawContent={annotatedContent.rawContent}
+                          sections={annotatedContent.sections}
+                          annotations={annotatedContent.annotations}
+                        />
+                      </ResizablePanel>
+                    </ResizablePanelGroup>
+                  </TabsContent>
+                )}
                 <TabsContent value="history">
                   {historyLoading ? (
                     <div className="space-y-2 p-4">

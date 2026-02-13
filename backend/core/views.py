@@ -1,3 +1,6 @@
+import re
+
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -7,10 +10,12 @@ from rest_framework.viewsets import ViewSet
 from annotations.models import Annotation
 from core.permissions import IsAdmin, IsAnyRole
 
-from .models import AnnotationClass
+from .models import AnnotationClass, ExcludedFileHash
 from .serializers import (
     AnnotationClassSerializer,
     CreateAnnotationClassSerializer,
+    CreateExcludedFileHashSerializer,
+    ExcludedFileHashSerializer,
     UpdateAnnotationClassSerializer,
 )
 
@@ -85,3 +90,122 @@ class AnnotationClassViewSet(ViewSet):
                 "annotation_count": count,
             }
         )
+
+
+class ExcludedFileHashViewSet(ViewSet):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def list(self, request):
+        queryset = ExcludedFileHash.objects.select_related("created_by").all()
+
+        search = request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(content_hash__icontains=search)
+                | Q(file_name__icontains=search)
+                | Q(note__icontains=search)
+            )
+
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        items = queryset[start:end]
+
+        return Response(
+            {
+                "count": total,
+                "results": ExcludedFileHashSerializer(items, many=True).data,
+            }
+        )
+
+    def create(self, request):
+        serializer = CreateExcludedFileHashSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        obj = ExcludedFileHash.objects.create(
+            content_hash=data["content_hash"],
+            file_name=data.get("file_name", ""),
+            note=data.get("note", ""),
+            created_by=request.user,
+        )
+        return Response(
+            ExcludedFileHashSerializer(obj).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def destroy(self, request, pk=None):
+        try:
+            obj = ExcludedFileHash.objects.get(pk=pk)
+        except ExcludedFileHash.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="bulk-create")
+    def bulk_create(self, request):
+        items = request.data.get("items", [])
+        if not items:
+            return Response(
+                {"detail": "items list is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = 0
+        skipped = 0
+        errors = []
+        hex_pattern = re.compile(r"^[0-9a-f]{64}$")
+
+        to_create = []
+        seen = set()
+
+        for i, item in enumerate(items):
+            content_hash = str(item.get("content_hash", "")).lower().strip()
+            if not hex_pattern.match(content_hash):
+                errors.append({"index": i, "error": "Invalid SHA-256 hash."})
+                continue
+            if content_hash in seen:
+                skipped += 1
+                continue
+            seen.add(content_hash)
+            to_create.append(
+                ExcludedFileHash(
+                    content_hash=content_hash,
+                    file_name=str(item.get("file_name", "")),
+                    note=str(item.get("note", "")),
+                    created_by=request.user,
+                )
+            )
+
+        # Filter out hashes that already exist in DB
+        existing = set(
+            ExcludedFileHash.objects.filter(
+                content_hash__in=[o.content_hash for o in to_create]
+            ).values_list("content_hash", flat=True)
+        )
+
+        new_objects = [o for o in to_create if o.content_hash not in existing]
+        skipped += len(to_create) - len(new_objects)
+
+        ExcludedFileHash.objects.bulk_create(new_objects, ignore_conflicts=True)
+        created = len(new_objects)
+
+        return Response(
+            {"created": created, "skipped": skipped, "errors": errors},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["delete"], url_path="bulk-delete")
+    def bulk_delete(self, request):
+        ids = request.data.get("ids", [])
+        if not ids:
+            return Response(
+                {"detail": "ids list is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deleted_count, _ = ExcludedFileHash.objects.filter(id__in=ids).delete()
+        return Response({"deleted": deleted_count})

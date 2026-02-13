@@ -22,6 +22,7 @@ class DatasetListSerializer(serializers.ModelSerializer):
             "upload_date",
             "file_count",
             "duplicate_count",
+            "excluded_count",
             "status",
             "error_message",
             "status_summary",
@@ -50,6 +51,7 @@ class DatasetDetailSerializer(serializers.ModelSerializer):
             "upload_date",
             "file_count",
             "duplicate_count",
+            "excluded_count",
             "status",
             "error_message",
             "status_summary",
@@ -85,13 +87,14 @@ class DatasetUploadSerializer(serializers.Serializer):
 class DatasetStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
-        fields = ["id", "status", "file_count", "duplicate_count", "error_message"]
+        fields = ["id", "status", "file_count", "duplicate_count", "excluded_count", "error_message"]
         read_only_fields = fields
 
 
 class JobSerializer(serializers.ModelSerializer):
     assigned_annotator = MiniUserSerializer(read_only=True)
     assigned_qa = MiniUserSerializer(read_only=True)
+    discarded_by = MiniUserSerializer(read_only=True)
 
     class Meta:
         model = Job
@@ -101,6 +104,8 @@ class JobSerializer(serializers.ModelSerializer):
             "status",
             "assigned_annotator",
             "assigned_qa",
+            "discard_reason",
+            "discarded_by",
             "created_at",
             "updated_at",
         ]
@@ -110,6 +115,7 @@ class JobSerializer(serializers.ModelSerializer):
 class JobDetailSerializer(serializers.ModelSerializer):
     assigned_annotator = MiniUserSerializer(read_only=True)
     assigned_qa = MiniUserSerializer(read_only=True)
+    discarded_by = MiniUserSerializer(read_only=True)
     dataset_name = serializers.CharField(source="dataset.name", read_only=True)
 
     class Meta:
@@ -122,6 +128,8 @@ class JobDetailSerializer(serializers.ModelSerializer):
             "status",
             "assigned_annotator",
             "assigned_qa",
+            "discard_reason",
+            "discarded_by",
             "created_at",
             "updated_at",
         ]

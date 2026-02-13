@@ -13,6 +13,7 @@ export function mapDataset(data: Record<string, unknown>): Dataset {
     uploadDate: data.upload_date as string,
     fileCount: data.file_count as number,
     duplicateCount: (data.duplicate_count as number) ?? 0,
+    excludedCount: (data.excluded_count as number) ?? 0,
     status: data.status as Dataset["status"],
     errorMessage: data.error_message as string,
   };

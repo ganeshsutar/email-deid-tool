@@ -24,6 +24,7 @@ export interface Dataset {
   uploadDate: string;
   fileCount: number;
   duplicateCount: number;
+  excludedCount: number;
   status: DatasetStatus;
   errorMessage: string;
 }
@@ -35,6 +36,8 @@ export interface Job {
   status: JobStatus;
   assignedAnnotator: User | null;
   assignedQa: User | null;
+  discardReason?: string;
+  discardedBy?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -122,4 +125,13 @@ export interface EmailSection {
   type: string; // "HEADERS" | "TEXT_PLAIN" | "TEXT_HTML"
   label: string;
   content: string;
+}
+
+export interface ExcludedFileHash {
+  id: string;
+  contentHash: string;
+  fileName: string;
+  note: string;
+  createdBy: { id: string; name: string } | null;
+  createdAt: string;
 }

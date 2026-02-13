@@ -7,6 +7,7 @@ interface DatasetStatusResponse {
   status: DatasetStatus;
   fileCount: number;
   duplicateCount: number;
+  excludedCount: number;
   errorMessage: string;
 }
 
@@ -17,6 +18,7 @@ async function getDatasetStatus(id: string): Promise<DatasetStatusResponse> {
     status: response.data.status,
     fileCount: response.data.file_count,
     duplicateCount: response.data.duplicate_count ?? 0,
+    excludedCount: response.data.excluded_count ?? 0,
     errorMessage: response.data.error_message,
   };
 }

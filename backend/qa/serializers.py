@@ -132,6 +132,7 @@ class MyQAJobsSerializer(serializers.Serializer):
     dataset_name = serializers.CharField(source="dataset.name")
     file_name = serializers.CharField()
     status = serializers.CharField()
+    discard_reason = serializers.CharField()
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     annotator_name = serializers.SerializerMethodField()

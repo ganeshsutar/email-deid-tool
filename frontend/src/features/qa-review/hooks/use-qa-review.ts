@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { AnnotationClass, EmailSection, WorkspaceAnnotation } from "@/types/models";
-import { AnnotationQAStatus } from "@/types/enums";
+import { AnnotationQAStatus, JobStatus } from "@/types/enums";
+import { useAutosave } from "@/hooks/use-autosave";
 import {
   useJobForQAReview,
   useQARawContent,
@@ -11,6 +13,7 @@ import {
   type QAModification,
 } from "../api/accept-annotation";
 import { useRejectAnnotation } from "../api/reject-annotation";
+import { useDiscardQAJob } from "../api/discard-qa-job";
 import { useQADraft } from "../api/get-qa-draft";
 import { useSaveQADraft } from "../api/save-qa-draft";
 
@@ -21,6 +24,7 @@ export function useQAReview(jobId: string) {
   const { data: draftData, isLoading: draftLoading } = useQADraft(jobId);
   const acceptMutation = useAcceptAnnotation();
   const rejectMutation = useRejectAnnotation();
+  const discardMutation = useDiscardQAJob();
   const saveDraftMutation = useSaveQADraft();
 
   const [originalAnnotations, setOriginalAnnotations] = useState<WorkspaceAnnotation[]>([]);
@@ -32,6 +36,7 @@ export function useQAReview(jobId: string) {
   const [activeRightTab, setActiveRightTab] = useState("preview");
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string>();
   const [isDirty, setIsDirty] = useState(false);
+  const [dirtyTick, setDirtyTick] = useState(0);
 
   // Section-based content
   const sections: EmailSection[] = contentData?.sections ?? [];
@@ -135,6 +140,7 @@ export function useQAReview(jobId: string) {
       return next;
     });
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const flagAnnotation = useCallback((id: string, note?: string) => {
@@ -151,6 +157,7 @@ export function useQAReview(jobId: string) {
       });
     }
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const editAnnotation = useCallback(
@@ -182,6 +189,8 @@ export function useQAReview(jobId: string) {
         { type: "modified", annotationId: id, description: `Changed class to ${newCls.name}` },
       ]);
       setIsDirty(true);
+    setDirtyTick((t) => t + 1);
+      setDirtyTick((t) => t + 1);
     },
     [],
   );
@@ -198,6 +207,7 @@ export function useQAReview(jobId: string) {
       { type: "deleted", annotationId: id, description: "Deleted annotation" },
     ]);
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const addAnnotation = useCallback(
@@ -226,6 +236,8 @@ export function useQAReview(jobId: string) {
         { type: "added", annotationId: newAnn.id, description: `Added ${cls.name}: "${text}"` },
       ]);
       setIsDirty(true);
+    setDirtyTick((t) => t + 1);
+      setDirtyTick((t) => t + 1);
       window.getSelection()?.removeAllRanges();
     },
     [],
@@ -250,6 +262,7 @@ export function useQAReview(jobId: string) {
       { type: "modified", annotationId, description: `Reassigned tag to ${newTag}` },
     ]);
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const getExistingTagsForClass = useCallback(
@@ -273,6 +286,7 @@ export function useQAReview(jobId: string) {
   const toggleEditMode = useCallback(() => {
     setEditModeEnabled((prev) => !prev);
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const setAnnotationNote = useCallback((id: string, note: string) => {
@@ -282,6 +296,7 @@ export function useQAReview(jobId: string) {
       return next;
     });
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const getModificationSummary = useCallback(() => {
@@ -293,8 +308,16 @@ export function useQAReview(jobId: string) {
 
   const hasModifications = modifications.length > 0;
 
-  const saveDraft = useCallback(() => {
-    // Serialize Maps to plain objects
+  const discard = useCallback(async (reason: string) => {
+    await discardMutation.mutateAsync({
+      jobId,
+      reason,
+      expectedStatus: job?.status,
+    });
+  }, [jobId, job?.status, discardMutation]);
+
+  // Build draft payload (shared between silent + manual save)
+  const buildDraftPayload = useCallback(() => {
     const statuses: Record<string, string> = {};
     annotationStatuses.forEach((s, id) => {
       statuses[id] = s;
@@ -303,22 +326,40 @@ export function useQAReview(jobId: string) {
     annotationNotes.forEach((note, id) => {
       if (note) notes[id] = note;
     });
+    return {
+      annotations: currentAnnotations,
+      statuses,
+      notes,
+      modifications,
+      editModeEnabled,
+    };
+  }, [currentAnnotations, annotationStatuses, annotationNotes, modifications, editModeEnabled]);
 
-    saveDraftMutation.mutate({
-      jobId,
-      data: {
-        annotations: currentAnnotations,
-        statuses,
-        notes,
-        modifications,
-        editModeEnabled,
-      },
-    }, {
-      onSuccess: () => {
-        setIsDirty(false);
-      },
-    });
-  }, [jobId, currentAnnotations, annotationStatuses, annotationNotes, modifications, editModeEnabled, saveDraftMutation]);
+  // Ref-stable silent save for autosave (no toast)
+  const saveDraftSilentRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  saveDraftSilentRef.current = async () => {
+    await saveDraftMutation.mutateAsync({ jobId, data: buildDraftPayload() });
+    setIsDirty(false);
+  };
+  const saveDraftSilentStable = useCallback(async () => {
+    await saveDraftSilentRef.current?.();
+  }, []);
+
+  const { autosaveStatus, cancelPendingAutosave } = useAutosave({
+    saveFn: saveDraftSilentStable,
+    isDirty,
+    isSaving: saveDraftMutation.isPending,
+    dirtyTick,
+    enabled: job?.status === JobStatus.QA_IN_PROGRESS,
+  });
+
+  // Manual save: cancel autosave, save, show toast
+  const saveDraft = useCallback(async () => {
+    cancelPendingAutosave();
+    await saveDraftMutation.mutateAsync({ jobId, data: buildDraftPayload() });
+    setIsDirty(false);
+    toast.success("QA draft saved");
+  }, [jobId, buildDraftPayload, saveDraftMutation, cancelPendingAutosave]);
 
   const accept = useCallback(
     async (comments: string) => {
@@ -377,10 +418,13 @@ export function useQAReview(jobId: string) {
     saveDraft,
     isSaving: saveDraftMutation.isPending,
     isDirty,
+    autosaveStatus,
     accept,
     reject,
+    discard,
     isAccepting: acceptMutation.isPending,
     isRejecting: rejectMutation.isPending,
+    isDiscarding: discardMutation.isPending,
     setActiveRightTab,
   };
 }

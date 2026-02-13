@@ -11,6 +11,7 @@ from rest_framework.viewsets import ViewSet
 from annotations.models import Annotation, AnnotationVersion
 from core.models import PlatformSetting
 from core.section_extractor import extract_sections
+from core.settings_views import get_discard_reasons
 from core.permissions import IsQA
 from datasets.models import Job
 from .models import QADraftReview, QAReviewVersion
@@ -88,6 +89,7 @@ class QAViewSet(ViewSet):
             Job.Status.QA_ACCEPTED,
             Job.Status.QA_REJECTED,
             Job.Status.DELIVERED,
+            Job.Status.DISCARDED,
         ]
         job, err = self._get_job(job_id, request.user, allowed)
         if err:
@@ -331,6 +333,63 @@ class QAViewSet(ViewSet):
             {"detail": "Annotation rejected.", "status": job.status},
             status=status.HTTP_201_CREATED,
         )
+
+    def discard_job(self, request, job_id):
+        reason = request.data.get("reason", "").strip()
+        if not reason:
+            return Response(
+                {"detail": "reason is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        valid_reasons = get_discard_reasons()
+        if reason not in valid_reasons:
+            return Response(
+                {"detail": f"Invalid discard reason. Must be one of: {valid_reasons}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        allowed_statuses = (
+            Job.Status.ASSIGNED_QA,
+            Job.Status.QA_IN_PROGRESS,
+        )
+
+        with transaction.atomic():
+            try:
+                job = (
+                    Job.objects.select_for_update()
+                    .select_related("dataset")
+                    .get(id=job_id)
+                )
+            except Job.DoesNotExist:
+                return Response(
+                    {"detail": "Job not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            if job.assigned_qa_id != request.user.id:
+                return Response(
+                    {"detail": "You are not assigned as QA for this job."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if job.status not in allowed_statuses:
+                return Response(
+                    {"detail": f"Cannot discard job with status '{job.status}'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            expected_status = request.data.get("expected_status")
+            if expected_status and job.status != expected_status:
+                return Response(
+                    {"detail": "Job status has changed. Please refresh."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            QADraftReview.objects.filter(job=job).delete()
+
+            job.status = Job.Status.DISCARDED
+            job.discard_reason = reason
+            job.discarded_by = request.user
+            job.save(update_fields=["status", "discard_reason", "discarded_by", "updated_at"])
+
+        return Response({"detail": "Job discarded.", "status": job.status})
 
     def my_jobs(self, request):
         base_queryset = (

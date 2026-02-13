@@ -49,6 +49,7 @@ function DatasetUploadDialogContent({
   const [error, setError] = useState("");
   const [fileCount, setFileCount] = useState(0);
   const [duplicateCount, setDuplicateCount] = useState(0);
+  const [excludedCount, setExcludedCount] = useState(0);
 
   const uploadDataset = useUploadDataset();
 
@@ -63,6 +64,7 @@ function DatasetUploadDialogContent({
       setStage("success");
       setFileCount(statusData.fileCount);
       setDuplicateCount(statusData.duplicateCount);
+      setExcludedCount(statusData.excludedCount);
     } else if (statusData.status === DatasetStatus.FAILED) {
       setStage("error");
       setError(statusData.errorMessage || "Extraction failed.");
@@ -87,6 +89,7 @@ function DatasetUploadDialogContent({
         setStage("success");
         setFileCount(result.fileCount);
         setDuplicateCount(result.duplicateCount);
+        setExcludedCount(result.excludedCount);
       } else if (result.status === DatasetStatus.FAILED) {
         setStage("error");
         setError(result.errorMessage || "Extraction failed.");
@@ -128,6 +131,9 @@ function DatasetUploadDialogContent({
             <strong>{name}</strong>
             {duplicateCount > 0 && (
               <>, <strong data-testid="dataset-duplicate-count">{duplicateCount}</strong> duplicate(s) skipped</>
+            )}
+            {excludedCount > 0 && (
+              <>, <strong>{excludedCount}</strong> excluded by blocklist</>
             )}
           </p>
         </div>

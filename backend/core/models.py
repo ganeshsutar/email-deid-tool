@@ -28,3 +28,24 @@ class PlatformSetting(models.Model):
 
     def __str__(self):
         return f"{self.key}: {self.value}"
+
+
+class ExcludedFileHash(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content_hash = models.CharField(max_length=64, unique=True)
+    file_name = models.CharField(max_length=255, blank=True, default="")
+    note = models.TextField(blank=True, default="")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="excluded_file_hashes",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Excluded: {self.file_name or self.content_hash[:12]}"

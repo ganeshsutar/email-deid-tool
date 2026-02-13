@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Save, X, XCircle } from "lucide-react";
+import { Ban, Check, Save, X, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnnotationClasses } from "@/features/annotation-classes/api/get-annotation-classes";
 import { scrollToAnnotation } from "@/lib/offset-utils";
@@ -25,13 +25,16 @@ import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
 import { SectionedContentViewer } from "@/components/sectioned-content-viewer";
+import { DiscardJobDialog } from "@/components/discard-job-dialog";
 import { useSetHeaderSlot } from "@/lib/header-slot";
+import { useDiscardReasons } from "@/features/dashboard/api/get-discard-reasons-setting";
 import { TagReassignmentDialog } from "@/features/annotations/components/tag-reassignment-dialog";
 import { AcceptDialog } from "./accept-dialog";
 import { AnnotationActionToolbar } from "./annotation-action-toolbar";
 import { AnnotationsReviewListTab } from "./annotations-review-list-tab";
 import { EditModeControls } from "./edit-mode-controls";
 import { RejectDialog } from "./reject-dialog";
+import { AutosaveIndicator } from "@/components/autosave-indicator";
 import { useQAReview } from "../hooks/use-qa-review";
 
 interface QAReviewWorkspaceProps {
@@ -41,8 +44,10 @@ interface QAReviewWorkspaceProps {
 export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
   const review = useQAReview(jobId);
   const { data: annotationClasses } = useAnnotationClasses();
+  const { data: discardReasonsData } = useDiscardReasons();
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [toolbarAnnotation, setToolbarAnnotation] = useState<import("@/types/models").WorkspaceAnnotation | null>(null);
   const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
@@ -91,7 +96,8 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
 
   const isReadOnly = review.job?.status === JobStatus.QA_ACCEPTED
     || review.job?.status === JobStatus.QA_REJECTED
-    || review.job?.status === JobStatus.DELIVERED;
+    || review.job?.status === JobStatus.DELIVERED
+    || review.job?.status === JobStatus.DISCARDED;
 
   const headerActions = useMemo(() => {
     if (!review.job) return null;
@@ -113,6 +119,18 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               modificationCount={review.modifications.length}
             />
             <Separator orientation="vertical" className="h-6" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setDiscardDialogOpen(true)}
+              disabled={review.isDiscarding}
+              data-testid="discard-button"
+            >
+              <Ban className="mr-1 h-4 w-4" />
+              Discard
+            </Button>
+            <AutosaveIndicator status={review.autosaveStatus} />
             <Button
               variant="outline"
               size="sm"
@@ -155,8 +173,10 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
     review.isDirty,
     review.isSaving,
     review.saveDraft,
+    review.autosaveStatus,
     review.isRejecting,
     review.isAccepting,
+    review.isDiscarding,
     navigate,
   ]);
 
@@ -392,6 +412,19 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
           onClose={() => setTagReassignAnnotation(null)}
         />
       )}
+
+      {/* Discard dialog */}
+      <DiscardJobDialog
+        open={discardDialogOpen}
+        onOpenChange={setDiscardDialogOpen}
+        reasons={discardReasonsData?.reasons ?? []}
+        isSubmitting={review.isDiscarding}
+        onConfirm={async (reason) => {
+          await review.discard(reason);
+          setDiscardDialogOpen(false);
+          navigate({ to: "/qa/dashboard" });
+        }}
+      />
 
       {/* Accept dialog */}
       <AcceptDialog

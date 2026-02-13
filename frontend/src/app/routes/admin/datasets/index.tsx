@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { Download, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -14,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { downloadDatasetCsv } from "@/features/datasets/api/download-dataset-csv";
 import { useDatasets } from "@/features/datasets/api/get-datasets";
 import { StatusBadge } from "@/features/datasets/components/status-badge";
 import { DatasetUploadDialog } from "@/features/datasets/components/dataset-upload-dialog";
@@ -129,7 +139,7 @@ function DatasetsPage() {
                   <TableHead>Files</TableHead>
                   <TableHead>Uploaded By</TableHead>
                   <TableHead>Upload Date</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -170,15 +180,66 @@ function DatasetsPage() {
                         {new Date(dataset.uploadDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={() => setDeleteTarget(dataset)}
-                          data-testid="dataset-delete-button"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                data-testid="dataset-download-button"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel className="max-w-[200px] truncate">
+                                {dataset.name}
+                              </DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await downloadDatasetCsv({
+                                      datasetId: dataset.id,
+                                      datasetName: dataset.name,
+                                      includeAnnotations: false,
+                                    });
+                                    toast.success("CSV downloaded");
+                                  } catch {
+                                    toast.error("Failed to download CSV");
+                                  }
+                                }}
+                              >
+                                Jobs Only
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await downloadDatasetCsv({
+                                      datasetId: dataset.id,
+                                      datasetName: dataset.name,
+                                      includeAnnotations: true,
+                                    });
+                                    toast.success("CSV downloaded");
+                                  } catch {
+                                    toast.error("Failed to download CSV");
+                                  }
+                                }}
+                              >
+                                Jobs with Annotations
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => setDeleteTarget(dataset)}
+                            data-testid="dataset-delete-button"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

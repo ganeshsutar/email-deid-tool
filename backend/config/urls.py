@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import UserViewSet
 from config.spa_view import SPAView
-from core.views import AnnotationClassViewSet
+from core.views import AnnotationClassViewSet, ExcludedFileHashViewSet
 from datasets.views import DatasetViewSet, JobViewSet
 
 router = DefaultRouter()
@@ -15,6 +15,7 @@ router.register(r"users", UserViewSet, basename="users")
 router.register(r"annotation-classes", AnnotationClassViewSet, basename="annotation-classes")
 router.register(r"datasets", DatasetViewSet, basename="datasets")
 router.register(r"jobs", JobViewSet, basename="jobs")
+router.register(r"excluded-hashes", ExcludedFileHashViewSet, basename="excluded-hashes")
 
 
 def health_check(request):

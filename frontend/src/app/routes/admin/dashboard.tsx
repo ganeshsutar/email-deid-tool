@@ -2,8 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardStats } from "@/features/dashboard/api/get-dashboard-stats";
 import { useRecentDatasets } from "@/features/dashboard/api/get-recent-datasets";
-import { useAnnotatorPerformance } from "@/features/dashboard/api/get-annotator-performance";
-import { useQAPerformance } from "@/features/dashboard/api/get-qa-performance";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
 import { JobStatusChart } from "@/features/dashboard/components/job-status-chart";
 import { RecentDatasetsTable } from "@/features/dashboard/components/recent-datasets-table";
@@ -18,8 +16,6 @@ export const Route = createFileRoute("/admin/dashboard")({
 function AdminDashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentDatasets } = useRecentDatasets();
-  const { data: annotatorPerf } = useAnnotatorPerformance();
-  const { data: qaPerf } = useQAPerformance();
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -57,8 +53,8 @@ function AdminDashboardPage() {
 
       {/* Performance Tables */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {annotatorPerf && <AnnotatorPerformanceTable data={annotatorPerf} />}
-        {qaPerf && <QAPerformanceTable data={qaPerf} />}
+        <AnnotatorPerformanceTable />
+        <QAPerformanceTable />
       </div>
     </div>
   );

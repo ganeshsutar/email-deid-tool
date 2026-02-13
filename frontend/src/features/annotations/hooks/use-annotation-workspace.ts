@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AnnotationClass, EmailSection, WorkspaceAnnotation } from "@/types/models";
+import { JobStatus } from "@/types/enums";
+import { useAutosave } from "@/hooks/use-autosave";
 import { useJobForAnnotation, useRawContent } from "../api/get-job-for-annotation";
 import { useDraft } from "../api/get-draft";
 import { useSaveDraft } from "../api/save-draft";
 import { useSubmitAnnotation } from "../api/submit-annotation";
+import { useDiscardAnnotationJob } from "../api/discard-annotation-job";
 
 interface PendingSelection {
   text: string;
@@ -60,6 +63,7 @@ export function useAnnotationWorkspace(jobId: string) {
   const { data: draftData } = useDraft(jobId);
   const saveDraftMutation = useSaveDraft();
   const submitMutation = useSubmitAnnotation();
+  const discardMutation = useDiscardAnnotationJob();
 
   const [annotations, setAnnotations] = useState<WorkspaceAnnotation[]>([]);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string>();
@@ -69,6 +73,7 @@ export function useAnnotationWorkspace(jobId: string) {
   const [sameValuePrompt, setSameValuePrompt] = useState<SameValuePrompt | null>(null);
   const [activeRightTab, setActiveRightTab] = useState("preview");
   const [isDirty, setIsDirty] = useState(false);
+  const [dirtyTick, setDirtyTick] = useState(0);
   const [sameValueLinkingEnabled, setSameValueLinkingEnabled] = useState(true);
 
   // Section-based content
@@ -204,6 +209,7 @@ export function useAnnotationWorkspace(jobId: string) {
           sameValueMap.current.set(key, newTag);
           setAnnotations((prev) => [...prev, annotation]);
           setIsDirty(true);
+      setDirtyTick((t) => t + 1);
           setPendingSelection(null);
           window.getSelection()?.removeAllRanges();
           return;
@@ -291,6 +297,7 @@ export function useAnnotationWorkspace(jobId: string) {
       sameValueMap.current.set(key, newTag);
       setAnnotations((prev) => [...prev, annotation]);
       setIsDirty(true);
+      setDirtyTick((t) => t + 1);
       setPendingSelection(null);
       window.getSelection()?.removeAllRanges();
     },
@@ -319,6 +326,7 @@ export function useAnnotationWorkspace(jobId: string) {
 
       setAnnotations((prev) => [...prev, annotation]);
       setIsDirty(true);
+      setDirtyTick((t) => t + 1);
       setSameValuePrompt(null);
       setPendingSelection(null);
       window.getSelection()?.removeAllRanges();
@@ -350,6 +358,7 @@ export function useAnnotationWorkspace(jobId: string) {
         }),
       );
       setIsDirty(true);
+      setDirtyTick((t) => t + 1);
     },
     [],
   );
@@ -370,6 +379,7 @@ export function useAnnotationWorkspace(jobId: string) {
       return prev.filter((a) => a.id !== id);
     });
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const reassignTag = useCallback((annotationId: string, newTag: string) => {
@@ -382,6 +392,7 @@ export function useAnnotationWorkspace(jobId: string) {
       }),
     );
     setIsDirty(true);
+    setDirtyTick((t) => t + 1);
   }, []);
 
   const getExistingTagsForClass = useCallback(
@@ -402,10 +413,39 @@ export function useAnnotationWorkspace(jobId: string) {
     [annotations],
   );
 
-  const saveDraft = useCallback(async () => {
+  const discard = useCallback(async (reason: string) => {
+    await discardMutation.mutateAsync({
+      jobId,
+      reason,
+      expectedStatus: job?.status,
+    });
+  }, [jobId, job?.status, discardMutation]);
+
+  // Silent save for autosave (no toast) — defined as ref-stable callback
+  const saveDraftSilentRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  saveDraftSilentRef.current = async () => {
     await saveDraftMutation.mutateAsync({ jobId, annotations });
     setIsDirty(false);
-  }, [jobId, annotations, saveDraftMutation]);
+  };
+  const saveDraftSilentStable = useCallback(async () => {
+    await saveDraftSilentRef.current?.();
+  }, []);
+
+  const { autosaveStatus, cancelPendingAutosave } = useAutosave({
+    saveFn: saveDraftSilentStable,
+    isDirty,
+    isSaving: saveDraftMutation.isPending,
+    dirtyTick,
+    enabled: job?.status === JobStatus.ANNOTATION_IN_PROGRESS,
+  });
+
+  // Manual save: cancel pending autosave, save, show toast
+  const saveDraft = useCallback(async () => {
+    cancelPendingAutosave();
+    await saveDraftMutation.mutateAsync({ jobId, annotations });
+    setIsDirty(false);
+    toast.success("Draft saved");
+  }, [jobId, annotations, saveDraftMutation, cancelPendingAutosave]);
 
   const submit = useCallback(async () => {
     const invalidAnnotations = annotations
@@ -450,7 +490,9 @@ export function useAnnotationWorkspace(jobId: string) {
     activeRightTab,
     setActiveRightTab,
     isDirty,
+    autosaveStatus,
     isSubmitting: submitMutation.isPending,
+    isDiscarding: discardMutation.isPending,
     isSaving: saveDraftMutation.isPending,
     handleTextSelection,
     handleClassSelected,
@@ -463,5 +505,6 @@ export function useAnnotationWorkspace(jobId: string) {
     setSameValueLinkingEnabled,
     saveDraft,
     submit,
+    discard,
   };
 }

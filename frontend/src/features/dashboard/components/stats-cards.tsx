@@ -7,6 +7,7 @@ import {
   PlayCircle,
   CheckCircle2,
   ShieldCheck,
+  Ban,
 } from "lucide-react";
 import {
   Card,
@@ -58,7 +59,7 @@ function StatCard({
 
 export function StatsCards({ stats }: StatsCardsProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:shadow-xs">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:shadow-xs">
       <StatCard
         title="Total Datasets"
         value={stats.totalDatasets}
@@ -90,6 +91,11 @@ export function StatsCards({ stats }: StatsCardsProps) {
         title="Delivered"
         value={stats.delivered}
         icon={<CheckCircle2 className="h-4 w-4 text-muted-foreground" />}
+      />
+      <StatCard
+        title="Discarded"
+        value={stats.discarded}
+        icon={<Ban className="h-4 w-4 text-muted-foreground" />}
       />
     </div>
   );

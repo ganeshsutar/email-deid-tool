@@ -20,6 +20,7 @@ const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   [JobStatus.QA_REJECTED]: { label: "Rejected", color: "bg-red-500" },
   [JobStatus.QA_ACCEPTED]: { label: "Accepted", color: "bg-green-500" },
   [JobStatus.DELIVERED]: { label: "Delivered", color: "bg-emerald-500" },
+  [JobStatus.DISCARDED]: { label: "Discarded", color: "bg-slate-500" },
 };
 
 interface DatasetStatusCardsProps {
@@ -36,7 +37,7 @@ export function DatasetStatusCards({
   const statuses = Object.keys(STATUS_DISPLAY);
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-9" data-testid="dataset-status-cards">
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10" data-testid="dataset-status-cards">
       {statuses.map((statusKey) => {
         const count = statusSummary[statusKey] ?? 0;
         const display = STATUS_DISPLAY[statusKey];

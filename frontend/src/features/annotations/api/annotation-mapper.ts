@@ -27,6 +27,7 @@ export interface MyAnnotationJob {
   datasetName: string;
   fileName: string;
   status: string;
+  discardReason: string;
   createdAt: string;
   updatedAt: string;
   annotationCount: number;
@@ -89,6 +90,7 @@ export function mapMyAnnotationJob(
     datasetName: data.dataset_name as string,
     fileName: data.file_name as string,
     status: data.status as string,
+    discardReason: (data.discard_reason as string) ?? "",
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
     annotationCount: data.annotation_count as number,

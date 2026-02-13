@@ -1,10 +1,12 @@
+import csv
 import hashlib
 import io
 import os
 import zipfile
+from collections import defaultdict
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import action
@@ -13,8 +15,10 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
 from accounts.models import User
-from annotations.models import DraftAnnotation
+from annotations.models import Annotation, AnnotationVersion, DraftAnnotation
+from annotations.serializers import AnnotationSerializer
 from core.permissions import IsAdmin
+from core.section_extractor import extract_sections
 from qa.models import QADraftReview
 
 from .models import Dataset, Job
@@ -175,9 +179,21 @@ class DatasetViewSet(ViewSet):
                 .values_list("content_hash", flat=True)
             )
 
+            # Phase 3: excluded hash blocklist check
+            from core.models import ExcludedFileHash
+            excluded_hashes = set(
+                ExcludedFileHash.objects.filter(content_hash__in=candidate_hashes)
+                .values_list("content_hash", flat=True)
+            )
+
             jobs = []
+            excluded_count = 0
             for candidate in candidates:
-                if candidate["content_hash"] in existing_hashes:
+                h = candidate["content_hash"]
+                if h in excluded_hashes:
+                    excluded_count += 1
+                    continue
+                if h in existing_hashes:
                     continue
                 job = Job(
                     dataset=dataset,
@@ -189,13 +205,14 @@ class DatasetViewSet(ViewSet):
                 jobs.append(job)
 
             total_extracted = len(seen_hashes_in_zip)
-            duplicate_count = total_extracted - len(jobs)
+            duplicate_count = total_extracted - len(jobs) - excluded_count
 
             Job.objects.bulk_create(jobs)
             dataset.status = Dataset.Status.READY
             dataset.file_count = len(jobs)
             dataset.duplicate_count = duplicate_count
-            dataset.save(update_fields=["status", "file_count", "duplicate_count"])
+            dataset.excluded_count = excluded_count
+            dataset.save(update_fields=["status", "file_count", "duplicate_count", "excluded_count"])
 
         except Exception as e:
             dataset.status = Dataset.Status.FAILED
@@ -210,6 +227,120 @@ class DatasetViewSet(ViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         return Response(DatasetStatusSerializer(dataset).data)
+
+    @action(detail=True, methods=["get"], url_path="csv-export")
+    def csv_export(self, request, pk=None):
+        try:
+            dataset = Dataset.objects.get(pk=pk)
+        except Dataset.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        include_annotations = request.query_params.get(
+            "include_annotations", ""
+        ).lower() in ("true", "1")
+
+        jobs_qs = (
+            Job.objects.filter(dataset=dataset)
+            .select_related("assigned_annotator", "assigned_qa", "discarded_by")
+            .order_by("file_name")
+        )
+
+        safe_name = dataset.name.replace('"', "'")
+
+        if include_annotations:
+            filename = f"{safe_name}_jobs_with_annotations.csv"
+            columns = [
+                "File Name", "Status", "Assigned Annotator", "Assigned QA",
+                "Discard Reason", "Discarded By",
+                "Class Name", "Tag", "Section", "Start Offset", "End Offset",
+                "Original Text", "Annotated By", "Source", "Version",
+                "Created At", "Updated At",
+            ]
+
+            # Efficiently fetch latest annotations per job
+            job_ids = list(jobs_qs.values_list("id", flat=True))
+            latest_version_subq = (
+                AnnotationVersion.objects.filter(job_id=OuterRef("job_id"))
+                .order_by("-version_number")
+                .values("id")[:1]
+            )
+            latest_version_ids = list(
+                AnnotationVersion.objects.filter(
+                    job_id__in=job_ids,
+                    id=Subquery(latest_version_subq),
+                ).values_list("id", flat=True)
+            )
+
+            annotations_by_job = defaultdict(list)
+            for ann in (
+                Annotation.objects.filter(
+                    annotation_version_id__in=latest_version_ids
+                )
+                .select_related(
+                    "annotation_version",
+                    "annotation_version__created_by",
+                )
+                .order_by("section_index", "start_offset")
+            ):
+                annotations_by_job[ann.annotation_version.job_id].append(ann)
+        else:
+            filename = f"{safe_name}_jobs.csv"
+            columns = [
+                "File Name", "Status", "Assigned Annotator", "Assigned QA",
+                "Discard Reason", "Discarded By", "Created At", "Updated At",
+            ]
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        writer = csv.writer(response)
+        writer.writerow(columns)
+
+        def user_display(user):
+            if not user:
+                return ""
+            return user.email
+
+        for job in jobs_qs.iterator():
+            base_row = [
+                job.file_name,
+                job.get_status_display(),
+                user_display(job.assigned_annotator),
+                user_display(job.assigned_qa),
+                job.discard_reason,
+                user_display(job.discarded_by),
+            ]
+
+            if include_annotations:
+                anns = annotations_by_job.get(job.pk, [])
+                if anns:
+                    for ann in anns:
+                        ver = ann.annotation_version
+                        writer.writerow(base_row + [
+                            ann.class_name,
+                            ann.tag,
+                            ann.section_index,
+                            ann.start_offset,
+                            ann.end_offset,
+                            ann.original_text,
+                            user_display(ver.created_by),
+                            ver.source,
+                            ver.version_number,
+                            job.created_at.isoformat(),
+                            job.updated_at.isoformat(),
+                        ])
+                else:
+                    writer.writerow(base_row + [""] * 9 + [
+                        job.created_at.isoformat(),
+                        job.updated_at.isoformat(),
+                    ])
+            else:
+                writer.writerow(base_row + [
+                    job.created_at.isoformat(),
+                    job.updated_at.isoformat(),
+                ])
+
+        return response
 
     @action(detail=True, methods=["get"])
     def jobs(self, request, pk=None):
@@ -657,10 +788,52 @@ class JobViewSet(ViewSet):
             )
         return HttpResponse(job.eml_content, content_type="text/plain; charset=utf-8")
 
+    @action(detail=True, methods=["get"], url_path="annotated-content")
+    def annotated_content(self, request, pk=None):
+        try:
+            job = Job.objects.get(pk=pk)
+        except Job.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        latest_version = (
+            AnnotationVersion.objects.filter(job=job)
+            .order_by("-version_number")
+            .first()
+        )
+
+        if not latest_version:
+            return Response({
+                "has_annotations": False,
+                "raw_content": job.eml_content or "",
+                "sections": [],
+                "annotations": [],
+            })
+
+        sections = extract_sections(job.eml_content or "")
+        annotations = latest_version.annotations.select_related(
+            "annotation_class"
+        ).all()
+
+        return Response({
+            "has_annotations": True,
+            "raw_content": job.eml_content or "",
+            "sections": [
+                {
+                    "index": s.index,
+                    "type": s.section_type,
+                    "label": s.label,
+                    "content": s.content,
+                }
+                for s in sections
+            ],
+            "annotations": AnnotationSerializer(annotations, many=True).data,
+        })
+
     RESETTABLE_STATUSES = (
         Job.Status.DELIVERED,
         Job.Status.QA_ACCEPTED,
         Job.Status.QA_REJECTED,
+        Job.Status.DISCARDED,
     )
 
     @action(detail=True, methods=["post"])
@@ -691,7 +864,9 @@ class JobViewSet(ViewSet):
             job.assigned_annotator = None
             job.assigned_qa = None
             job.status = Job.Status.UPLOADED
-            job.save(update_fields=["assigned_annotator", "assigned_qa", "status"])
+            job.discard_reason = ""
+            job.discarded_by = None
+            job.save(update_fields=["assigned_annotator", "assigned_qa", "status", "discard_reason", "discarded_by"])
 
         return Response({"status": "reset"})
 
@@ -718,6 +893,8 @@ class JobViewSet(ViewSet):
                 assigned_annotator=None,
                 assigned_qa=None,
                 status=Job.Status.UPLOADED,
+                discard_reason="",
+                discarded_by=None,
             )
 
         return Response({"reset": reset_count})

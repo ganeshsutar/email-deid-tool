@@ -32,6 +32,7 @@ const statusVariantMap: Record<string, "default" | "secondary" | "destructive" |
   [JobStatus.QA_IN_PROGRESS]: "secondary",
   [JobStatus.QA_REJECTED]: "destructive",
   [JobStatus.DELIVERED]: "default",
+  [JobStatus.DISCARDED]: "outline",
 };
 
 const statusLabelMap: Record<string, string> = {
@@ -43,6 +44,7 @@ const statusLabelMap: Record<string, string> = {
   [JobStatus.QA_REJECTED]: "Rejected",
   [JobStatus.QA_ACCEPTED]: "Accepted",
   [JobStatus.DELIVERED]: "Delivered",
+  [JobStatus.DISCARDED]: "Discarded",
 };
 
 export function MyJobsTable({ jobs }: MyJobsTableProps) {
@@ -145,6 +147,20 @@ export function MyJobsTable({ jobs }: MyJobsTableProps) {
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium text-red-600">QA Comments:</span>{" "}
                     {job.reworkInfo!.comments}
+                  </p>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        {jobs
+          .filter((j) => j.status === JobStatus.DISCARDED && j.discardReason)
+          .map((job) => (
+            <TableRow key={`${job.id}-discard`} className="bg-slate-50/50 dark:bg-slate-950/10">
+              <TableCell colSpan={6}>
+                <div className="border-l-2 border-slate-400 pl-3 py-1">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-slate-600">Discard Reason:</span>{" "}
+                    {job.discardReason}
                   </p>
                 </div>
               </TableCell>

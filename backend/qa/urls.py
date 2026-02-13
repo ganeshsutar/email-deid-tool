@@ -28,6 +28,10 @@ urlpatterns = [
         QAViewSet.as_view({"post": "reject_annotation"}),
     ),
     path(
+        "jobs/<uuid:job_id>/discard/",
+        QAViewSet.as_view({"post": "discard_job"}),
+    ),
+    path(
         "my-jobs/",
         QAViewSet.as_view({"get": "my_jobs"}),
     ),

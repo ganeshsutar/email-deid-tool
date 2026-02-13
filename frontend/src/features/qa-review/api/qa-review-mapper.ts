@@ -21,6 +21,7 @@ export interface MyQAJob {
   datasetName: string;
   fileName: string;
   status: string;
+  discardReason: string;
   createdAt: string;
   updatedAt: string;
   annotatorName: string | null;
@@ -72,6 +73,7 @@ export function mapMyQAJob(data: Record<string, unknown>): MyQAJob {
     datasetName: data.dataset_name as string,
     fileName: data.file_name as string,
     status: data.status as string,
+    discardReason: (data.discard_reason as string) ?? "",
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
     annotatorName: data.annotator_name as string | null,

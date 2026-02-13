@@ -2,7 +2,7 @@ import re
 
 from rest_framework import serializers
 
-from .models import AnnotationClass
+from .models import AnnotationClass, ExcludedFileHash
 
 
 class MiniUserSerializer(serializers.Serializer):
@@ -57,6 +57,37 @@ class CreateAnnotationClassSerializer(serializers.Serializer):
             raise serializers.ValidationError("Color must be in #RRGGBB format.")
         return value
 
+
+class ExcludedFileHashSerializer(serializers.ModelSerializer):
+    created_by = MiniUserSerializer(read_only=True)
+
+    class Meta:
+        model = ExcludedFileHash
+        fields = [
+            "id",
+            "content_hash",
+            "file_name",
+            "note",
+            "created_by",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class CreateExcludedFileHashSerializer(serializers.Serializer):
+    content_hash = serializers.CharField(max_length=64)
+    file_name = serializers.CharField(max_length=255, required=False, default="", allow_blank=True)
+    note = serializers.CharField(required=False, default="", allow_blank=True)
+
+    def validate_content_hash(self, value):
+        value = value.lower().strip()
+        if not re.match(r"^[0-9a-f]{64}$", value):
+            raise serializers.ValidationError(
+                "Must be a valid 64-character hex SHA-256 hash."
+            )
+        if ExcludedFileHash.objects.filter(content_hash=value).exists():
+            raise serializers.ValidationError("This hash is already in the blocklist.")
+        return value
 
 class UpdateAnnotationClassSerializer(serializers.Serializer):
     display_label = serializers.CharField(max_length=100, required=False)

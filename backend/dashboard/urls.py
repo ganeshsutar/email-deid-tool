@@ -23,4 +23,8 @@ urlpatterns = [
         "qa-performance/",
         DashboardViewSet.as_view({"get": "qa_performance"}),
     ),
+    path(
+        "job-csv-export/",
+        DashboardViewSet.as_view({"get": "job_csv_export"}),
+    ),
 ]
