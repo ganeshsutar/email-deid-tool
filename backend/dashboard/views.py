@@ -3,7 +3,6 @@ from datetime import datetime
 
 from django.db.models import Count, Q
 from django.http import HttpResponse
-from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
@@ -20,25 +19,23 @@ class DashboardViewSet(ViewSet):
 
     @staticmethod
     def _parse_date_range(request):
-        """Parse optional date_from / date_to query params (YYYY-MM-DD)."""
+        """Parse optional date_from / date_to query params (YYYY-MM-DD).
+
+        Returns date objects (not datetimes) for use with Django's __date
+        lookup, which correctly handles timezone conversion in the database.
+        """
         date_from = None
         date_to = None
         raw_from = request.query_params.get("date_from")
         raw_to = request.query_params.get("date_to")
         try:
             if raw_from:
-                dt = datetime.strptime(raw_from, "%Y-%m-%d")
-                date_from = timezone.make_aware(
-                    dt.replace(hour=0, minute=0, second=0)
-                )
+                date_from = datetime.strptime(raw_from, "%Y-%m-%d").date()
         except (ValueError, TypeError):
             pass
         try:
             if raw_to:
-                dt = datetime.strptime(raw_to, "%Y-%m-%d")
-                date_to = timezone.make_aware(
-                    dt.replace(hour=23, minute=59, second=59)
-                )
+                date_to = datetime.strptime(raw_to, "%Y-%m-%d").date()
         except (ValueError, TypeError):
             pass
         return date_from, date_to
@@ -149,21 +146,21 @@ class DashboardViewSet(ViewSet):
         submitted_date_q = Q()
         if date_from:
             submitted_date_q &= Q(
-                annotator_jobs__annotation_versions__created_at__gte=date_from,
+                annotator_jobs__annotation_versions__created_at__date__gte=date_from,
                 annotator_jobs__annotation_versions__source="ANNOTATOR",
             )
         if date_to:
             submitted_date_q &= Q(
-                annotator_jobs__annotation_versions__created_at__lte=date_to,
+                annotator_jobs__annotation_versions__created_at__date__lte=date_to,
                 annotator_jobs__annotation_versions__source="ANNOTATOR",
             )
 
         # For assigned/in_progress: filter by last activity on the job
         activity_date_q = Q()
         if date_from:
-            activity_date_q &= Q(annotator_jobs__updated_at__gte=date_from)
+            activity_date_q &= Q(annotator_jobs__updated_at__date__gte=date_from)
         if date_to:
-            activity_date_q &= Q(annotator_jobs__updated_at__lte=date_to)
+            activity_date_q &= Q(annotator_jobs__updated_at__date__lte=date_to)
 
         completed_statuses = [
             Job.Status.SUBMITTED_FOR_QA,
@@ -173,7 +170,6 @@ class DashboardViewSet(ViewSet):
             Job.Status.DELIVERED,
         ]
         in_progress_statuses = [
-            Job.Status.ASSIGNED_ANNOTATOR,
             Job.Status.ANNOTATION_IN_PROGRESS,
         ]
 
@@ -193,8 +189,7 @@ class DashboardViewSet(ViewSet):
             ),
             in_progress_jobs=Count(
                 "annotator_jobs",
-                filter=Q(annotator_jobs__status__in=in_progress_statuses)
-                & activity_date_q,
+                filter=Q(annotator_jobs__status__in=in_progress_statuses),
                 distinct=True,
             ),
             delivered_jobs=Count(
@@ -236,15 +231,15 @@ class DashboardViewSet(ViewSet):
         date_from, date_to = self._parse_date_range(request)
         job_date_q = Q()
         if date_from:
-            job_date_q &= Q(qa_jobs__updated_at__gte=date_from)
+            job_date_q &= Q(qa_jobs__updated_at__date__gte=date_from)
         if date_to:
-            job_date_q &= Q(qa_jobs__updated_at__lte=date_to)
+            job_date_q &= Q(qa_jobs__updated_at__date__lte=date_to)
 
         review_date_q = Q()
         if date_from:
-            review_date_q &= Q(qa_reviews__reviewed_at__gte=date_from)
+            review_date_q &= Q(qa_reviews__reviewed_at__date__gte=date_from)
         if date_to:
-            review_date_q &= Q(qa_reviews__reviewed_at__lte=date_to)
+            review_date_q &= Q(qa_reviews__reviewed_at__date__lte=date_to)
 
         completed_statuses = [
             Job.Status.QA_ACCEPTED,
@@ -272,7 +267,7 @@ class DashboardViewSet(ViewSet):
             ),
             in_review_jobs=Count(
                 "qa_jobs",
-                filter=Q(qa_jobs__status=Job.Status.QA_IN_PROGRESS) & job_date_q,
+                filter=Q(qa_jobs__status=Job.Status.QA_IN_PROGRESS),
                 distinct=True,
             ),
             assigned_jobs=Count(

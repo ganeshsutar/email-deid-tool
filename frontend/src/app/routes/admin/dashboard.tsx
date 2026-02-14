@@ -1,5 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton } from "@/components/table-skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useDashboardStats } from "@/features/dashboard/api/get-dashboard-stats";
 import { useRecentDatasets } from "@/features/dashboard/api/get-recent-datasets";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
@@ -15,7 +23,8 @@ export const Route = createFileRoute("/admin/dashboard")({
 
 function AdminDashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: recentDatasets } = useRecentDatasets();
+  const { data: recentDatasets, isLoading: datasetsLoading } =
+    useRecentDatasets();
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -48,7 +57,21 @@ function AdminDashboardPage() {
       {/* Job Status Chart + Recent Datasets side by side */}
       <div className="grid gap-4 lg:grid-cols-2">
         <JobStatusChart />
-        {recentDatasets && <RecentDatasetsTable datasets={recentDatasets} />}
+        {datasetsLoading ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Datasets</CardTitle>
+              <CardDescription>
+                5 most recently uploaded datasets
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TableSkeleton rows={5} columns={6} />
+            </CardContent>
+          </Card>
+        ) : recentDatasets ? (
+          <RecentDatasetsTable datasets={recentDatasets} />
+        ) : null}
       </div>
 
       {/* Performance Tables */}
