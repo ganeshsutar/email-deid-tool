@@ -11,6 +11,23 @@ interface SanitizedHtmlRendererProps {
   attachments?: EmailAttachment[];
 }
 
+// Email-safe HTML attributes that DOMPurify strips by default.
+// These deprecated attributes are widely used in email HTML for styling
+// because many email clients don't support modern CSS. They carry no XSS risk.
+// We use a forceKeepAttr hook because ADD_ATTR alone is insufficient when
+// DOMPurify's ALLOWED_URI_REGEXP rejects non-URL values like color codes.
+const EMAIL_SAFE_ATTRS = new Set([
+  "bgcolor",
+  "background",
+  "valign",
+  "cellpadding",
+  "cellspacing",
+  "width",
+  "height",
+  "align",
+  "border",
+]);
+
 const IFRAME_BASE_STYLES = `
 body {
   margin: 0;
@@ -37,11 +54,18 @@ export function SanitizedHtmlRenderer({
   const { sanitizedHtml, cidMap } = useMemo(() => {
     const map = buildCidMap(attachments);
     const withCids = replaceCidReferences(html, map.urls);
+    DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+      if (EMAIL_SAFE_ATTRS.has(data.attrName)) {
+        data.forceKeepAttr = true;
+      }
+    });
     const clean = DOMPurify.sanitize(withCids, {
       USE_PROFILES: { html: true },
       ADD_TAGS: ["style"],
-      ALLOWED_URI_REGEXP: /^(?:blob:|data:|https?:|mailto:)/i,
+      ADD_ATTR: [...EMAIL_SAFE_ATTRS],
+      ALLOWED_URI_REGEXP: /^(?:blob:|data:|https?:|mailto:|#)/i,
     });
+    DOMPurify.removeAllHooks();
     return { sanitizedHtml: clean, cidMap: map };
   }, [html, attachments]);
 
