@@ -29,6 +29,10 @@ const EMAIL_SAFE_ATTRS = new Set([
 ]);
 
 const IFRAME_BASE_STYLES = `
+html, body {
+  height: auto !important;
+  overflow: visible !important;
+}
 body {
   margin: 0;
   padding: 0;
@@ -75,10 +79,22 @@ export function SanitizedHtmlRenderer({
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${IFRAME_BASE_STYLES}</style></head><body>${sanitizedHtml}</body></html>`;
   }, [sanitizedHtml]);
 
+  const growthCountRef = useRef(0);
+  const prevHeightRef = useRef(0);
+
   const syncHeight = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentDocument?.body) return;
     const height = iframe.contentDocument.body.scrollHeight;
+
+    if (height > prevHeightRef.current && prevHeightRef.current > 0) {
+      growthCountRef.current++;
+      if (growthCountRef.current > 3) return; // Feedback loop detected, stop
+    } else {
+      growthCountRef.current = 0;
+    }
+
+    prevHeightRef.current = height;
     iframe.style.height = `${height}px`;
   }, []);
 
@@ -98,6 +114,10 @@ export function SanitizedHtmlRenderer({
     const handleLoad = () => {
       const body = iframe.contentDocument?.body;
       if (!body) return;
+
+      // Reset feedback loop detection for new content
+      growthCountRef.current = 0;
+      prevHeightRef.current = 0;
 
       // Initial height sync
       syncHeight();
