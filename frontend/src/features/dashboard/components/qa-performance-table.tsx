@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -17,11 +17,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { useQAPerformance } from "../api/get-qa-performance";
 import type { QAPerformance } from "../api/dashboard-mapper";
 
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 type SortKey = keyof QAPerformance;
 type ViewMode = "overview" | "review";
 
@@ -30,6 +39,12 @@ export function QAPerformanceTable() {
   const [view, setView] = useState<ViewMode>("overview");
   const [sortKey, setSortKey] = useState<SortKey>("assignedJobs");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(0);
+  }, [sortKey, sortDir, dateRange, view, pageSize]);
 
   const dateParams = useMemo(
     () => ({
@@ -98,6 +113,7 @@ export function QAPerformanceTable() {
         {isLoading ? (
           <TableSkeleton columns={6} rows={3} />
         ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -186,7 +202,7 @@ export function QAPerformanceTable() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sorted.map((row) => (
+                sorted.slice(page * pageSize, (page + 1) * pageSize).map((row) => (
                   <TableRow key={row.id}>
                     <TableCell className="font-medium">{row.name}</TableCell>
                     {view === "overview" ? (
@@ -233,6 +249,73 @@ export function QAPerformanceTable() {
               )}
             </TableBody>
           </Table>
+          {sorted.length > 0 && (() => {
+            const totalPages = Math.ceil(sorted.length / pageSize);
+            return (
+              <div className="flex items-center justify-between pt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Rows per page</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => setPageSize(Number(v))}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <SelectItem key={size} value={String(size)}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-muted-foreground mr-2">
+                    Page {page + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage(0)}
+                    disabled={page === 0}
+                  >
+                    &laquo;
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage((p) => p - 1)}
+                    disabled={page === 0}
+                  >
+                    &lsaquo;
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={page + 1 >= totalPages}
+                  >
+                    &rsaquo;
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage(totalPages - 1)}
+                    disabled={page + 1 >= totalPages}
+                  >
+                    &raquo;
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+          </>
         )}
       </CardContent>
     </Card>
