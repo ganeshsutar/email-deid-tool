@@ -16,6 +16,7 @@ import { useUnassignedJobs } from "@/features/job-assignment/api/get-unassigned-
 import { useAssignedJobs } from "@/features/job-assignment/api/get-assigned-jobs";
 import { useInProgressJobs } from "@/features/job-assignment/api/get-in-progress-jobs";
 import { useDatasets } from "@/features/datasets/api/get-datasets";
+import { useUsers } from "@/features/users/api/get-users";
 import { UnassignedJobsTable } from "@/features/job-assignment/components/unassigned-jobs-table";
 import { AssignedJobsTable } from "@/features/job-assignment/components/assigned-jobs-table";
 import { AssignmentControlsPanel } from "@/features/job-assignment/components/assignment-controls-panel";
@@ -48,6 +49,7 @@ function JobAssignmentPage() {
   const [assignedSearch, setAssignedSearch] = useState("");
   const [assignedLocalSearch, setAssignedLocalSearch] = useState("");
   const [assignedDatasetId, setAssignedDatasetId] = useState("all");
+  const [assignedAssigneeId, setAssignedAssigneeId] = useState("all");
   const [assignedSelectedIds, setAssignedSelectedIds] = useState<Set<string>>(new Set());
   const [reassignOpen, setReassignOpen] = useState(false);
 
@@ -56,6 +58,7 @@ function JobAssignmentPage() {
   const [inProgressSearch, setInProgressSearch] = useState("");
   const [inProgressLocalSearch, setInProgressLocalSearch] = useState("");
   const [inProgressDatasetId, setInProgressDatasetId] = useState("all");
+  const [inProgressAssigneeId, setInProgressAssigneeId] = useState("all");
   const [inProgressSelectedIds, setInProgressSelectedIds] = useState<Set<string>>(new Set());
   const [inProgressReassignOpen, setInProgressReassignOpen] = useState(false);
 
@@ -77,6 +80,7 @@ function JobAssignmentPage() {
     page: assignedPage,
     search: assignedSearch,
     datasetId: assignedDatasetId === "all" ? undefined : assignedDatasetId,
+    assigneeId: assignedAssigneeId === "all" ? undefined : assignedAssigneeId,
     pageSize: assignedPageSize,
   });
 
@@ -85,10 +89,15 @@ function JobAssignmentPage() {
     page: inProgressPage,
     search: inProgressSearch,
     datasetId: inProgressDatasetId === "all" ? undefined : inProgressDatasetId,
+    assigneeId: inProgressAssigneeId === "all" ? undefined : inProgressAssigneeId,
     pageSize: inProgressPageSize,
   });
 
   const { data: datasetsData } = useDatasets({ pageSize: 100 });
+
+  const assigneeRole = activeTab === "ANNOTATION" ? "ANNOTATOR" : "QA";
+  const { data: assigneesData } = useUsers({ role: assigneeRole, status: "ACTIVE", pageSize: 100 });
+  const assignees = assigneesData?.results ?? [];
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -126,11 +135,13 @@ function JobAssignmentPage() {
     setAssignedSearch("");
     setAssignedLocalSearch("");
     setAssignedDatasetId("all");
+    setAssignedAssigneeId("all");
     setAssignedSelectedIds(new Set());
     setInProgressPage(1);
     setInProgressSearch("");
     setInProgressLocalSearch("");
     setInProgressDatasetId("all");
+    setInProgressAssigneeId("all");
     setInProgressSelectedIds(new Set());
   }
 
@@ -272,6 +283,19 @@ function JobAssignmentPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select value={assignedAssigneeId} onValueChange={(v) => { setAssignedAssigneeId(v); setAssignedPage(1); }}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Assignees" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
+                      {assignees.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name || u.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="flex-1" />
                   <Button
                     data-testid="reassign-button"
@@ -324,6 +348,19 @@ function JobAssignmentPage() {
                       {datasets.map((ds) => (
                         <SelectItem key={ds.id} value={ds.id}>
                           {ds.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={inProgressAssigneeId} onValueChange={(v) => { setInProgressAssigneeId(v); setInProgressPage(1); }}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="All Assignees" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Assignees</SelectItem>
+                      {assignees.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name || u.email}
                         </SelectItem>
                       ))}
                     </SelectContent>

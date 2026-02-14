@@ -9,6 +9,7 @@ export interface AssignedJobsParams {
   pageSize?: number;
   search?: string;
   datasetId?: string;
+  assigneeId?: string;
 }
 
 interface AssignedJobsResponse {
@@ -26,6 +27,7 @@ async function getAssignedJobs(
       page_size: params.pageSize ?? 20,
       search: params.search || undefined,
       dataset_id: params.datasetId || undefined,
+      assignee_id: params.assigneeId || undefined,
     },
   });
   return {

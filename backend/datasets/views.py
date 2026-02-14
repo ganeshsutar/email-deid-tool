@@ -512,6 +512,13 @@ class JobViewSet(ViewSet):
         if dataset_id:
             queryset = queryset.filter(dataset_id=dataset_id)
 
+        assignee_id = request.query_params.get("assignee_id", "").strip()
+        if assignee_id:
+            if assign_type == "QA":
+                queryset = queryset.filter(assigned_qa_id=assignee_id)
+            else:
+                queryset = queryset.filter(assigned_annotator_id=assignee_id)
+
         search = request.query_params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
@@ -702,6 +709,13 @@ class JobViewSet(ViewSet):
         dataset_id = request.query_params.get("dataset_id", "").strip()
         if dataset_id:
             queryset = queryset.filter(dataset_id=dataset_id)
+
+        assignee_id = request.query_params.get("assignee_id", "").strip()
+        if assignee_id:
+            if assign_type == "QA":
+                queryset = queryset.filter(assigned_qa_id=assignee_id)
+            else:
+                queryset = queryset.filter(assigned_annotator_id=assignee_id)
 
         search = request.query_params.get("search", "").strip()
         if search:

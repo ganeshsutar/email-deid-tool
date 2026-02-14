@@ -1,4 +1,5 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ArrowUp, ArrowDown, Pencil, Trash2 } from "lucide-react";
 import type { WorkspaceAnnotation } from "@/types/models";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const SortKey = {
+  TAG: "tag",
+  CLASS: "classDisplayLabel",
+  TEXT: "originalText",
+  SECTION: "sectionIndex",
+  START: "startOffset",
+  END: "endOffset",
+} as const;
+type SortKey = (typeof SortKey)[keyof typeof SortKey];
+
+type SortDirection = "asc" | "desc";
+
+const STRING_KEYS = new Set<SortKey>(["tag", "classDisplayLabel", "originalText"]);
 
 interface AnnotationsListTabProps {
   annotations: WorkspaceAnnotation[];
@@ -26,9 +40,28 @@ export function AnnotationsListTab({
   onDelete,
   showActions = true,
 }: AnnotationsListTabProps) {
-  const sorted = [...annotations].sort(
-    (a, b) => a.sectionIndex - b.sectionIndex || a.startOffset - b.startOffset,
-  );
+  const [sortKey, setSortKey] = useState<SortKey>("tag");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  };
+
+  const sorted = useMemo(() => {
+    const dir = sortDirection === "asc" ? 1 : -1;
+    return [...annotations].sort((a, b) => {
+      if (STRING_KEYS.has(sortKey)) {
+        const cmp = (a[sortKey] as string).localeCompare(b[sortKey] as string);
+        return cmp * dir;
+      }
+      return ((a[sortKey] as number) - (b[sortKey] as number)) * dir;
+    });
+  }, [annotations, sortKey, sortDirection]);
 
   return (
     <div className="flex flex-col h-full">
@@ -36,12 +69,29 @@ export function AnnotationsListTab({
         <Table aria-label="Annotations list">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-24">Tag</TableHead>
-              <TableHead className="w-32">Class</TableHead>
-              <TableHead>Text</TableHead>
-              <TableHead className="w-10 text-right">Sec</TableHead>
-              <TableHead className="w-16 text-right">Start</TableHead>
-              <TableHead className="w-16 text-right">End</TableHead>
+              {([
+                { key: "tag" as SortKey, label: "Tag", className: "w-24" },
+                { key: "classDisplayLabel" as SortKey, label: "Class", className: "w-32" },
+                { key: "originalText" as SortKey, label: "Text", className: "" },
+                { key: "sectionIndex" as SortKey, label: "Sec", className: "w-10 text-right" },
+                { key: "startOffset" as SortKey, label: "Start", className: "w-16 text-right" },
+                { key: "endOffset" as SortKey, label: "End", className: "w-16 text-right" },
+              ]).map((col) => {
+                const active = sortKey === col.key;
+                const Icon = active && sortDirection === "desc" ? ArrowDown : ArrowUp;
+                return (
+                  <TableHead
+                    key={col.key}
+                    className={`${col.className} cursor-pointer select-none`}
+                    onClick={() => handleSort(col.key)}
+                  >
+                    <span className="inline-flex items-center gap-0.5">
+                      {col.label}
+                      <Icon className={`h-3 w-3 ${active ? "opacity-100" : "opacity-0"}`} />
+                    </span>
+                  </TableHead>
+                );
+              })}
               {showActions && <TableHead className="w-20">Actions</TableHead>}
             </TableRow>
           </TableHeader>
