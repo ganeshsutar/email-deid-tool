@@ -144,11 +144,26 @@ class DashboardViewSet(ViewSet):
 
     def annotator_performance(self, request):
         date_from, date_to = self._parse_date_range(request)
-        date_q = Q()
+
+        # For completed/delivered/rejected: filter by when annotator actually submitted
+        submitted_date_q = Q()
         if date_from:
-            date_q &= Q(annotator_jobs__created_at__gte=date_from)
+            submitted_date_q &= Q(
+                annotator_jobs__annotation_versions__created_at__gte=date_from,
+                annotator_jobs__annotation_versions__source="ANNOTATOR",
+            )
         if date_to:
-            date_q &= Q(annotator_jobs__created_at__lte=date_to)
+            submitted_date_q &= Q(
+                annotator_jobs__annotation_versions__created_at__lte=date_to,
+                annotator_jobs__annotation_versions__source="ANNOTATOR",
+            )
+
+        # For assigned/in_progress: filter by last activity on the job
+        activity_date_q = Q()
+        if date_from:
+            activity_date_q &= Q(annotator_jobs__updated_at__gte=date_from)
+        if date_to:
+            activity_date_q &= Q(annotator_jobs__updated_at__lte=date_to)
 
         completed_statuses = [
             Job.Status.SUBMITTED_FOR_QA,
@@ -165,22 +180,34 @@ class DashboardViewSet(ViewSet):
         annotators = User.objects.filter(
             role=User.Role.ANNOTATOR, status=User.Status.ACTIVE
         ).annotate(
-            assigned_jobs=Count("annotator_jobs", filter=date_q or None),
+            assigned_jobs=Count(
+                "annotator_jobs",
+                filter=activity_date_q or None,
+                distinct=True,
+            ),
             completed_jobs=Count(
                 "annotator_jobs",
-                filter=Q(annotator_jobs__status__in=completed_statuses) & date_q,
+                filter=Q(annotator_jobs__status__in=completed_statuses)
+                & submitted_date_q,
+                distinct=True,
             ),
             in_progress_jobs=Count(
                 "annotator_jobs",
-                filter=Q(annotator_jobs__status__in=in_progress_statuses) & date_q,
+                filter=Q(annotator_jobs__status__in=in_progress_statuses)
+                & activity_date_q,
+                distinct=True,
             ),
             delivered_jobs=Count(
                 "annotator_jobs",
-                filter=Q(annotator_jobs__status=Job.Status.DELIVERED) & date_q,
+                filter=Q(annotator_jobs__status=Job.Status.DELIVERED)
+                & submitted_date_q,
+                distinct=True,
             ),
             rejected_jobs=Count(
                 "annotator_jobs",
-                filter=Q(annotator_jobs__status=Job.Status.QA_REJECTED) & date_q,
+                filter=Q(annotator_jobs__status=Job.Status.QA_REJECTED)
+                & submitted_date_q,
+                distinct=True,
             ),
         )
 
@@ -209,9 +236,9 @@ class DashboardViewSet(ViewSet):
         date_from, date_to = self._parse_date_range(request)
         job_date_q = Q()
         if date_from:
-            job_date_q &= Q(qa_jobs__created_at__gte=date_from)
+            job_date_q &= Q(qa_jobs__updated_at__gte=date_from)
         if date_to:
-            job_date_q &= Q(qa_jobs__created_at__lte=date_to)
+            job_date_q &= Q(qa_jobs__updated_at__lte=date_to)
 
         review_date_q = Q()
         if date_from:

@@ -59,11 +59,17 @@ function JobAssignmentPage() {
   const [inProgressSelectedIds, setInProgressSelectedIds] = useState<Set<string>>(new Set());
   const [inProgressReassignOpen, setInProgressReassignOpen] = useState(false);
 
+  // Page size state
+  const [pageSize, setPageSize] = useState(20);
+  const [assignedPageSize, setAssignedPageSize] = useState(20);
+  const [inProgressPageSize, setInProgressPageSize] = useState(20);
+
   const { data: jobsData, isLoading: jobsLoading } = useUnassignedJobs({
     type: activeTab,
     page,
     search,
     datasetId: datasetId === "all" ? undefined : datasetId,
+    pageSize,
   });
 
   const { data: assignedData, isLoading: assignedLoading } = useAssignedJobs({
@@ -71,6 +77,7 @@ function JobAssignmentPage() {
     page: assignedPage,
     search: assignedSearch,
     datasetId: assignedDatasetId === "all" ? undefined : assignedDatasetId,
+    pageSize: assignedPageSize,
   });
 
   const { data: inProgressData, isLoading: inProgressLoading } = useInProgressJobs({
@@ -78,6 +85,7 @@ function JobAssignmentPage() {
     page: inProgressPage,
     search: inProgressSearch,
     datasetId: inProgressDatasetId === "all" ? undefined : inProgressDatasetId,
+    pageSize: inProgressPageSize,
   });
 
   const { data: datasetsData } = useDatasets({ pageSize: 100 });
@@ -221,9 +229,10 @@ function JobAssignmentPage() {
 
                         <DataTablePagination
                           page={page}
-                          pageSize={20}
+                          pageSize={pageSize}
                           totalCount={jobsData?.count ?? 0}
                           onPageChange={setPage}
+                          onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
                         />
                       </>
                     )}
@@ -287,9 +296,10 @@ function JobAssignmentPage() {
 
                     <DataTablePagination
                       page={assignedPage}
-                      pageSize={20}
+                      pageSize={assignedPageSize}
                       totalCount={assignedData?.count ?? 0}
                       onPageChange={setAssignedPage}
+                      onPageSizeChange={(size) => { setAssignedPageSize(size); setAssignedPage(1); }}
                     />
                   </>
                 )}
@@ -342,9 +352,10 @@ function JobAssignmentPage() {
 
                     <DataTablePagination
                       page={inProgressPage}
-                      pageSize={20}
+                      pageSize={inProgressPageSize}
                       totalCount={inProgressData?.count ?? 0}
                       onPageChange={setInProgressPage}
+                      onPageSizeChange={(size) => { setInProgressPageSize(size); setInProgressPage(1); }}
                     />
                   </>
                 )}
