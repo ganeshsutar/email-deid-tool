@@ -51,6 +51,15 @@ export type BaseColor = (typeof BaseColor)[keyof typeof BaseColor];
 export const RADIUS_OPTIONS = [0, 0.3, 0.5, 0.75, 1.0] as const;
 export type RadiusOption = (typeof RADIUS_OPTIONS)[number];
 
+// Font family per style preset
+const STYLE_FONTS: Record<StylePreset, string> = {
+  vega: "'Geist Sans', 'Geist', ui-sans-serif, system-ui, sans-serif",
+  nova: "'Inter', ui-sans-serif, system-ui, sans-serif",
+  maia: "'Nunito Sans', ui-sans-serif, system-ui, sans-serif",
+  lyra: "'JetBrains Mono', ui-monospace, monospace",
+  mira: "'DM Sans', ui-sans-serif, system-ui, sans-serif",
+};
+
 // Default radius per style preset
 const STYLE_DEFAULT_RADIUS: Record<StylePreset, number> = {
   vega: 0.5,
@@ -769,6 +778,7 @@ function applyTheme(config: ThemeConfig, resolved: "light" | "dark") {
   }
 
   root.style.setProperty("--radius", `${config.radius}rem`);
+  root.style.setProperty("--font-sans", STYLE_FONTS[config.style]);
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
