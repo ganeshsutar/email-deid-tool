@@ -30,7 +30,7 @@ import { useAnnotatorPerformance } from "../api/get-annotator-performance";
 import type { AnnotatorPerformance } from "../api/dashboard-mapper";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-type SortKey = keyof AnnotatorPerformance;
+type SortKey = keyof AnnotatorPerformance | "pendingJobs";
 
 export function AnnotatorPerformanceTable() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -53,11 +53,29 @@ export function AnnotatorPerformanceTable() {
 
   const { data, isLoading } = useAnnotatorPerformance(dateParams);
 
+  const totals = useMemo(() => {
+    if (!data) return { assigned: 0, completed: 0, pending: 0, inProgress: 0 };
+    return data.reduce(
+      (acc, row) => ({
+        assigned: acc.assigned + row.assignedJobs,
+        completed: acc.completed + row.completedJobs,
+        pending: acc.pending + (row.assignedJobs - row.completedJobs),
+        inProgress: acc.inProgress + row.inProgressJobs,
+      }),
+      { assigned: 0, completed: 0, pending: 0, inProgress: 0 },
+    );
+  }, [data]);
+
+  function getSortValue(row: AnnotatorPerformance, key: SortKey): number | string | null {
+    if (key === "pendingJobs") return row.assignedJobs - row.completedJobs;
+    return row[key] ?? -1;
+  }
+
   const sorted = useMemo(() => {
     if (!data) return [];
     return [...data].sort((a, b) => {
-      const av = a[sortKey] ?? -1;
-      const bv = b[sortKey] ?? -1;
+      const av = getSortValue(a, sortKey) ?? -1;
+      const bv = getSortValue(b, sortKey) ?? -1;
       if (av < bv) return sortDir === "asc" ? -1 : 1;
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
@@ -78,6 +96,14 @@ export function AnnotatorPerformanceTable() {
     return <span className="ml-1">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>;
   }
 
+  function ColumnTotal({ value }: { value: number }) {
+    return (
+      <div className="text-xs text-muted-foreground font-normal tabular-nums">
+        {value.toLocaleString()}
+      </div>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -94,7 +120,7 @@ export function AnnotatorPerformanceTable() {
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {isLoading ? (
-          <TableSkeleton columns={6} rows={3} />
+          <TableSkeleton columns={7} rows={3} />
         ) : (
           <>
           <Table>
@@ -111,22 +137,41 @@ export function AnnotatorPerformanceTable() {
                   className="text-right cursor-pointer select-none"
                   onClick={() => handleSort("assignedJobs")}
                 >
-                  Assigned
-                  <SortIndicator col="assignedJobs" />
+                  <div>
+                    Assigned
+                    <SortIndicator col="assignedJobs" />
+                  </div>
+                  <ColumnTotal value={totals.assigned} />
                 </TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
                   onClick={() => handleSort("completedJobs")}
                 >
-                  Completed
-                  <SortIndicator col="completedJobs" />
+                  <div>
+                    Completed
+                    <SortIndicator col="completedJobs" />
+                  </div>
+                  <ColumnTotal value={totals.completed} />
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer select-none"
+                  onClick={() => handleSort("pendingJobs")}
+                >
+                  <div>
+                    Pending
+                    <SortIndicator col="pendingJobs" />
+                  </div>
+                  <ColumnTotal value={totals.pending} />
                 </TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
                   onClick={() => handleSort("inProgressJobs")}
                 >
-                  In Progress
-                  <SortIndicator col="inProgressJobs" />
+                  <div>
+                    In Progress
+                    <SortIndicator col="inProgressJobs" />
+                  </div>
+                  <ColumnTotal value={totals.inProgress} />
                 </TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
@@ -148,7 +193,7 @@ export function AnnotatorPerformanceTable() {
               {sorted.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="text-center text-muted-foreground h-24"
                   >
                     No annotators found
@@ -163,6 +208,9 @@ export function AnnotatorPerformanceTable() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {row.completedJobs}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.assignedJobs - row.completedJobs}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {row.inProgressJobs}

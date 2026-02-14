@@ -31,7 +31,7 @@ import { useQAPerformance } from "../api/get-qa-performance";
 import type { QAPerformance } from "../api/dashboard-mapper";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-type SortKey = keyof QAPerformance;
+type SortKey = keyof QAPerformance | "pendingJobs";
 type ViewMode = "overview" | "review";
 
 export function QAPerformanceTable() {
@@ -56,17 +56,41 @@ export function QAPerformanceTable() {
 
   const { data, isLoading } = useQAPerformance(dateParams);
 
+  const totals = useMemo(() => {
+    if (!data) return {
+      assigned: 0, completed: 0, pending: 0, inReview: 0,
+      reviewed: 0, accepted: 0, rejected: 0,
+    };
+    return data.reduce(
+      (acc, row) => ({
+        assigned: acc.assigned + row.assignedJobs,
+        completed: acc.completed + row.completedJobs,
+        pending: acc.pending + (row.assignedJobs - row.completedJobs),
+        inReview: acc.inReview + row.inReviewJobs,
+        reviewed: acc.reviewed + row.reviewedJobs,
+        accepted: acc.accepted + row.acceptedJobs,
+        rejected: acc.rejected + row.rejectedJobs,
+      }),
+      { assigned: 0, completed: 0, pending: 0, inReview: 0, reviewed: 0, accepted: 0, rejected: 0 },
+    );
+  }, [data]);
+
   function handleViewChange(value: string) {
     setView(value as ViewMode);
     setSortKey(value === "overview" ? "assignedJobs" : "reviewedJobs");
     setSortDir("desc");
   }
 
+  function getSortValue(row: QAPerformance, key: SortKey): number | string | null {
+    if (key === "pendingJobs") return row.assignedJobs - row.completedJobs;
+    return row[key] ?? -1;
+  }
+
   const sorted = useMemo(() => {
     if (!data) return [];
     return [...data].sort((a, b) => {
-      const av = a[sortKey] ?? -1;
-      const bv = b[sortKey] ?? -1;
+      const av = getSortValue(a, sortKey) ?? -1;
+      const bv = getSortValue(b, sortKey) ?? -1;
       if (av < bv) return sortDir === "asc" ? -1 : 1;
       if (av > bv) return sortDir === "asc" ? 1 : -1;
       return 0;
@@ -86,6 +110,17 @@ export function QAPerformanceTable() {
     if (col !== sortKey) return null;
     return <span className="ml-1">{sortDir === "asc" ? "\u2191" : "\u2193"}</span>;
   }
+
+  function ColumnTotal({ value }: { value: number }) {
+    return (
+      <div className="text-xs text-muted-foreground font-normal tabular-nums">
+        {value.toLocaleString()}
+      </div>
+    );
+  }
+
+  const overviewColCount = 7;
+  const reviewColCount = 6;
 
   return (
     <Card>
@@ -111,7 +146,7 @@ export function QAPerformanceTable() {
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {isLoading ? (
-          <TableSkeleton columns={6} rows={3} />
+          <TableSkeleton columns={view === "overview" ? overviewColCount : reviewColCount} rows={3} />
         ) : (
           <>
           <Table>
@@ -130,22 +165,41 @@ export function QAPerformanceTable() {
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("assignedJobs")}
                     >
-                      Assigned
-                      <SortIndicator col="assignedJobs" />
+                      <div>
+                        Assigned
+                        <SortIndicator col="assignedJobs" />
+                      </div>
+                      <ColumnTotal value={totals.assigned} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("completedJobs")}
                     >
-                      Completed
-                      <SortIndicator col="completedJobs" />
+                      <div>
+                        Completed
+                        <SortIndicator col="completedJobs" />
+                      </div>
+                      <ColumnTotal value={totals.completed} />
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort("pendingJobs")}
+                    >
+                      <div>
+                        Pending
+                        <SortIndicator col="pendingJobs" />
+                      </div>
+                      <ColumnTotal value={totals.pending} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("inReviewJobs")}
                     >
-                      In Progress
-                      <SortIndicator col="inReviewJobs" />
+                      <div>
+                        In Progress
+                        <SortIndicator col="inReviewJobs" />
+                      </div>
+                      <ColumnTotal value={totals.inReview} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
@@ -162,29 +216,41 @@ export function QAPerformanceTable() {
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("reviewedJobs")}
                     >
-                      Reviewed
-                      <SortIndicator col="reviewedJobs" />
+                      <div>
+                        Reviewed
+                        <SortIndicator col="reviewedJobs" />
+                      </div>
+                      <ColumnTotal value={totals.reviewed} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("acceptedJobs")}
                     >
-                      Accepted
-                      <SortIndicator col="acceptedJobs" />
+                      <div>
+                        Accepted
+                        <SortIndicator col="acceptedJobs" />
+                      </div>
+                      <ColumnTotal value={totals.accepted} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("rejectedJobs")}
                     >
-                      Rejected
-                      <SortIndicator col="rejectedJobs" />
+                      <div>
+                        Rejected
+                        <SortIndicator col="rejectedJobs" />
+                      </div>
+                      <ColumnTotal value={totals.rejected} />
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort("inReviewJobs")}
                     >
-                      In Review
-                      <SortIndicator col="inReviewJobs" />
+                      <div>
+                        In Review
+                        <SortIndicator col="inReviewJobs" />
+                      </div>
+                      <ColumnTotal value={totals.inReview} />
                     </TableHead>
                     <TableHead className="text-right">Avg Review Time</TableHead>
                   </>
@@ -195,7 +261,7 @@ export function QAPerformanceTable() {
               {sorted.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={view === "overview" ? overviewColCount : reviewColCount}
                     className="text-center text-muted-foreground h-24"
                   >
                     No QA reviewers found
@@ -212,6 +278,9 @@ export function QAPerformanceTable() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {row.completedJobs}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {row.assignedJobs - row.completedJobs}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {row.inReviewJobs}
