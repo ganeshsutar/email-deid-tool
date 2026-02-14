@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, Save, Send, X } from "lucide-react";
+import { Ban, Save, Send, WrapText, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -29,6 +29,13 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AnnotationsListTab } from "@/components/annotations-list-tab";
 import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
@@ -53,6 +60,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
   const workspace = useAnnotationWorkspace(jobId);
   const { data: annotationClasses } = useAnnotationClasses();
   const { data: discardReasonsData } = useDiscardReasons();
+  const [wordWrap, setWordWrap] = useState(false);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
@@ -243,6 +251,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
                 annotations={workspace.annotations}
                 selectedAnnotationId={workspace.selectedAnnotationId}
                 onTextSelect={isReadOnly ? undefined : handleTextSelect}
+                wordWrap={wordWrap}
                 onAnnotationClick={(ann) => {
                   workspace.setSelectedAnnotationId(ann.id);
                   if (!isReadOnly) {
@@ -271,13 +280,31 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
               onValueChange={workspace.setActiveRightTab}
               className="flex h-full flex-col"
             >
-              <TabsList className="mx-2 mt-2 w-fit">
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="annotations" data-testid="annotations-list-tab">
-                  Annotations ({workspace.annotations.length})
-                </TabsTrigger>
-                <TabsTrigger value="email" data-testid="email-preview-tab">Email</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between mx-2 mt-2">
+                <TabsList className="w-fit">
+                  <TabsTrigger value="preview">Preview</TabsTrigger>
+                  <TabsTrigger value="annotations" data-testid="annotations-list-tab">
+                    Annotations ({workspace.annotations.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="email" data-testid="email-preview-tab">Email</TabsTrigger>
+                </TabsList>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Toggle
+                        size="sm"
+                        pressed={wordWrap}
+                        onPressedChange={setWordWrap}
+                        aria-label="Toggle word wrap"
+                        className="h-8 w-8"
+                      >
+                        <WrapText className="h-4 w-4" />
+                      </Toggle>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Toggle word wrap</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
                 <EmailPreview rawContent={workspace.rawContent} sections={workspace.sections} annotations={workspace.annotations} />
               </TabsContent>

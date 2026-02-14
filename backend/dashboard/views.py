@@ -41,27 +41,44 @@ class DashboardViewSet(ViewSet):
         return date_from, date_to
 
     def stats(self, request):
-        in_progress_statuses = [
-            Job.Status.ASSIGNED_ANNOTATOR,
-            Job.Status.ANNOTATION_IN_PROGRESS,
+        ann_completed_statuses = [
+            Job.Status.SUBMITTED_FOR_QA,
             Job.Status.ASSIGNED_QA,
             Job.Status.QA_IN_PROGRESS,
+            Job.Status.QA_ACCEPTED,
+            Job.Status.DELIVERED,
+        ]
+        qa_completed_statuses = [
+            Job.Status.QA_ACCEPTED,
+            Job.Status.QA_REJECTED,
+            Job.Status.DELIVERED,
         ]
         return Response(
             {
                 "total_datasets": Dataset.objects.count(),
                 "total_jobs": Job.objects.count(),
-                "pending_assignment": Job.objects.filter(
-                    status=Job.Status.UPLOADED
+                "ann_assigned": Job.objects.filter(
+                    assigned_annotator__isnull=False
                 ).count(),
-                "in_progress": Job.objects.filter(
-                    status__in=in_progress_statuses
+                "ann_in_progress": Job.objects.filter(
+                    status=Job.Status.ANNOTATION_IN_PROGRESS
+                ).count(),
+                "ann_completed": Job.objects.filter(
+                    assigned_annotator__isnull=False,
+                    status__in=ann_completed_statuses,
+                ).count(),
+                "qa_assigned": Job.objects.filter(
+                    assigned_qa__isnull=False
+                ).count(),
+                "qa_in_progress": Job.objects.filter(
+                    status=Job.Status.QA_IN_PROGRESS
+                ).count(),
+                "qa_completed": Job.objects.filter(
+                    assigned_qa__isnull=False,
+                    status__in=qa_completed_statuses,
                 ).count(),
                 "delivered": Job.objects.filter(
                     status=Job.Status.DELIVERED
-                ).count(),
-                "awaiting_qa": Job.objects.filter(
-                    status=Job.Status.SUBMITTED_FOR_QA
                 ).count(),
                 "discarded": Job.objects.filter(
                     status=Job.Status.DISCARDED

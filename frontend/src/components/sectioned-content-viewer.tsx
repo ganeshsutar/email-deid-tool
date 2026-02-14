@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { getSelectionOffsets, splitTextAtAnnotations } from "@/lib/offset-utils";
 import type { EmailSection, WorkspaceAnnotation } from "@/types/models";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
@@ -23,6 +23,7 @@ interface SectionedContentViewerProps {
   onAnnotationClick?: (annotation: WorkspaceAnnotation) => void;
   readOnly?: boolean;
   annotationStatuses?: Map<string, string>;
+  wordWrap?: boolean;
 }
 
 interface LineSegment {
@@ -39,6 +40,7 @@ export function SectionedContentViewer({
   onAnnotationClick,
   readOnly = false,
   annotationStatuses,
+  wordWrap = false,
 }: SectionedContentViewerProps) {
   const sectionRefs = useRef<Map<number, HTMLPreElement>>(new Map());
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(
@@ -168,9 +170,11 @@ export function SectionedContentViewer({
               renderSegment={renderSegment}
               sectionRefs={sectionRefs}
               readOnly={readOnly}
+              wordWrap={wordWrap}
             />
           );
         })}
+        {!wordWrap && <ScrollBar orientation="horizontal" />}
       </ScrollArea>
     </div>
   );
@@ -185,6 +189,7 @@ interface SectionBlockProps {
   renderSegment: (segment: LineSegment, idx: number) => React.ReactNode;
   sectionRefs: React.MutableRefObject<Map<number, HTMLPreElement>>;
   readOnly: boolean;
+  wordWrap: boolean;
 }
 
 function SectionBlock({
@@ -196,6 +201,7 @@ function SectionBlock({
   renderSegment,
   sectionRefs,
   readOnly,
+  wordWrap,
 }: SectionBlockProps) {
   const segments = useMemo(
     () => splitTextAtAnnotations(section.content, annotations),
@@ -261,6 +267,7 @@ function SectionBlock({
           role="document"
           aria-label={`${section.label} content`}
           className="email-line-viewer font-mono text-sm leading-loose py-2 pr-2"
+          style={{ whiteSpace: wordWrap ? "pre-wrap" : "pre" }}
           onMouseUp={readOnly ? undefined : onMouseUp}
         >
           {lineSegments.map((lineSegs, lineIdx) => (

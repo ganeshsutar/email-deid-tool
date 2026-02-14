@@ -18,12 +18,21 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Info } from "lucide-react";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { useAnnotatorPerformance } from "../api/get-annotator-performance";
@@ -109,7 +118,54 @@ export function AnnotatorPerformanceTable() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Annotator Performance</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle>Annotator Performance</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Annotator Performance Columns</DialogTitle>
+                    <DialogDescription>
+                      Explanation of each column in the annotator performance table.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="font-semibold">Name</dt>
+                      <dd className="text-muted-foreground">Annotator's display name.</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Assigned</dt>
+                      <dd className="text-muted-foreground">Total jobs assigned to the annotator.</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Completed</dt>
+                      <dd className="text-muted-foreground">Jobs that have progressed past annotation (submitted for QA, in QA, accepted, or delivered).</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Pending</dt>
+                      <dd className="text-muted-foreground">Assigned minus Completed.</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">In Progress</dt>
+                      <dd className="text-muted-foreground">Jobs currently being annotated (status = ANNOTATION_IN_PROGRESS).</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Acceptance %</dt>
+                      <dd className="text-muted-foreground">(Delivered Jobs / (Delivered + QA Rejected)) × 100 — percentage of completed jobs that passed QA.</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Avg Ann/Job</dt>
+                      <dd className="text-muted-foreground">Average number of annotations per job (not yet implemented).</dd>
+                    </div>
+                  </dl>
+                </DialogContent>
+              </Dialog>
+            </div>
             <CardDescription>Metrics for active annotators</CardDescription>
           </div>
           <DateRangePicker

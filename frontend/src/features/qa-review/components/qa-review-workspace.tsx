@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, Check, Save, X, XCircle } from "lucide-react";
+import { Ban, Check, Save, WrapText, X, XCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAnnotationClasses } from "@/features/annotation-classes/api/get-annotation-classes";
 import { scrollToAnnotation } from "@/lib/offset-utils";
@@ -21,6 +21,13 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
@@ -45,6 +52,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
   const review = useQAReview(jobId);
   const { data: annotationClasses } = useAnnotationClasses();
   const { data: discardReasonsData } = useDiscardReasons();
+  const [wordWrap, setWordWrap] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
@@ -313,6 +321,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
                 onAnnotationClick={handleAnnotationClickInViewer}
                 readOnly={!review.editModeEnabled}
                 annotationStatuses={statusStringMap}
+                wordWrap={wordWrap}
               />
             </div>
           </ResizablePanel>
@@ -323,13 +332,31 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
               onValueChange={review.setActiveRightTab}
               className="flex h-full flex-col"
             >
-              <TabsList className="mx-2 mt-2 w-fit">
-                <TabsTrigger value="preview">Preview</TabsTrigger>
-                <TabsTrigger value="annotations" data-testid="annotations-tab-trigger">
-                  Annotations ({review.currentAnnotations.length})
-                </TabsTrigger>
-                <TabsTrigger value="email">Email</TabsTrigger>
-              </TabsList>
+              <div className="flex items-center justify-between mx-2 mt-2">
+                <TabsList className="w-fit">
+                  <TabsTrigger value="preview">Preview</TabsTrigger>
+                  <TabsTrigger value="annotations" data-testid="annotations-tab-trigger">
+                    Annotations ({review.currentAnnotations.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="email">Email</TabsTrigger>
+                </TabsList>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Toggle
+                        size="sm"
+                        pressed={wordWrap}
+                        onPressedChange={setWordWrap}
+                        aria-label="Toggle word wrap"
+                        className="h-8 w-8"
+                      >
+                        <WrapText className="h-4 w-4" />
+                      </Toggle>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Toggle word wrap</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
                 <EmailPreview rawContent={review.rawContent} sections={review.sections} annotations={review.currentAnnotations} />
               </TabsContent>

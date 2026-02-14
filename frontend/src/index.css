@@ -189,9 +189,7 @@
    textContent. Keeps getSelectionOffsets() offsets correct. */
 .email-line-viewer {
   padding-left: 4rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow-wrap: break-word;
+  white-space: pre;
 }
 
 .email-line {

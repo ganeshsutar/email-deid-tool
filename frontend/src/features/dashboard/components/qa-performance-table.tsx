@@ -19,12 +19,21 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Info } from "lucide-react";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { useQAPerformance } from "../api/get-qa-performance";
@@ -127,7 +136,84 @@ export function QAPerformanceTable() {
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle>QA Performance</CardTitle>
+            <div className="flex items-center gap-1">
+              <CardTitle>QA Performance</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>QA Performance Columns</DialogTitle>
+                    <DialogDescription>
+                      Explanation of each column in the QA performance table.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold mb-2">Overview Columns</h4>
+                      <dl className="space-y-3">
+                        <div>
+                          <dt className="font-semibold">Name</dt>
+                          <dd className="text-muted-foreground">QA reviewer's display name.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Assigned</dt>
+                          <dd className="text-muted-foreground">Total jobs assigned for QA review.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Completed</dt>
+                          <dd className="text-muted-foreground">Jobs with a final QA decision (accepted, rejected, or delivered).</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Pending</dt>
+                          <dd className="text-muted-foreground">Assigned minus Completed.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">In Progress</dt>
+                          <dd className="text-muted-foreground">Jobs currently under QA review (status = QA_IN_PROGRESS).</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Acceptance %</dt>
+                          <dd className="text-muted-foreground">(Accepted Reviews / (Accepted + Rejected Reviews)) × 100 — percentage of reviews where QA accepted the annotations.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Avg Ann/Job</dt>
+                          <dd className="text-muted-foreground">Not yet implemented.</dd>
+                        </div>
+                      </dl>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Review Details Columns</h4>
+                      <dl className="space-y-3">
+                        <div>
+                          <dt className="font-semibold">Reviewed</dt>
+                          <dd className="text-muted-foreground">Total distinct jobs reviewed.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Accepted</dt>
+                          <dd className="text-muted-foreground">Jobs where the decision was ACCEPT.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Rejected</dt>
+                          <dd className="text-muted-foreground">Jobs where the decision was REJECT.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">In Review</dt>
+                          <dd className="text-muted-foreground">Jobs currently being reviewed.</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Avg Review Time</dt>
+                          <dd className="text-muted-foreground">Not yet implemented.</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <CardDescription>Metrics for active QA reviewers</CardDescription>
           </div>
           <div className="flex items-center gap-2">

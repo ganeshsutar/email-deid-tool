@@ -1,10 +1,13 @@
 export interface DashboardStats {
   totalDatasets: number;
   totalJobs: number;
-  pendingAssignment: number;
-  inProgress: number;
+  annAssigned: number;
+  annInProgress: number;
+  annCompleted: number;
+  qaAssigned: number;
+  qaInProgress: number;
+  qaCompleted: number;
   delivered: number;
-  awaitingQa: number;
   discarded: number;
 }
 
@@ -47,10 +50,13 @@ export function mapDashboardStats(
   return {
     totalDatasets: data.total_datasets as number,
     totalJobs: data.total_jobs as number,
-    pendingAssignment: data.pending_assignment as number,
-    inProgress: data.in_progress as number,
+    annAssigned: data.ann_assigned as number,
+    annInProgress: data.ann_in_progress as number,
+    annCompleted: data.ann_completed as number,
+    qaAssigned: data.qa_assigned as number,
+    qaInProgress: data.qa_in_progress as number,
+    qaCompleted: data.qa_completed as number,
     delivered: data.delivered as number,
-    awaitingQa: data.awaiting_qa as number,
     discarded: (data.discarded as number) ?? 0,
   };
 }

@@ -37,7 +37,7 @@ function AdminDashboardPage() {
             Overview of annotation activity and platform metrics.
           </p>
         </div>
-        <QuickActions stats={stats} />
+        <QuickActions />
       </div>
 
       {/* Stats Cards */}
