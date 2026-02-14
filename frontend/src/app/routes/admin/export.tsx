@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Select,
@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useExportDatasets } from "@/features/export/api/get-datasets-with-delivered";
-import { useDeliveredJobs } from "@/features/export/api/get-delivered-jobs";
+import { useDeliveredJobs, useAllDeliveredJobs } from "@/features/export/api/get-delivered-jobs";
 import { useExportPreview } from "@/features/export/api/get-export-preview";
 import { useExportHistory } from "@/features/export/api/get-export-history";
 import { useCreateExport } from "@/features/export/api/create-export";
@@ -28,6 +28,8 @@ export const Route = createFileRoute("/admin/export")({
   component: ExportPage,
 });
 
+const ALL_DATASETS_VALUE = "all";
+
 function ExportPage() {
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
     null,
@@ -37,11 +39,22 @@ function ExportPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const isAllDatasets = selectedDatasetId === ALL_DATASETS_VALUE;
+  const singleDatasetId = selectedDatasetId && !isAllDatasets ? selectedDatasetId : null;
+
   const { data: datasets } = useExportDatasets();
-  const { data: jobs } = useDeliveredJobs(selectedDatasetId);
+  const { data: singleDatasetJobs } = useDeliveredJobs(singleDatasetId);
+  const { data: allDatasetJobs } = useAllDeliveredJobs(isAllDatasets);
   const { data: preview } = useExportPreview(previewJobId);
   const { data: exportHistory } = useExportHistory({ page: 1 });
   const createExport = useCreateExport();
+
+  const jobs = isAllDatasets ? allDatasetJobs : singleDatasetJobs;
+
+  const totalDeliveredCount = useMemo(
+    () => datasets?.reduce((sum, ds) => sum + ds.deliveredCount, 0) ?? 0,
+    [datasets],
+  );
 
   const handleDatasetChange = useCallback((value: string) => {
     setSelectedDatasetId(value);
@@ -86,6 +99,10 @@ function ExportPage() {
     );
   }, [jobs, createExport]);
 
+  const jobsDescription = isAllDatasets
+    ? `${jobs?.length ?? 0} delivered job(s) across all datasets`
+    : `${jobs?.length ?? 0} delivered job(s) in this dataset`;
+
   return (
     <div className="space-y-6" data-testid="export-page">
       <div>
@@ -114,6 +131,11 @@ function ExportPage() {
               <SelectValue placeholder="Select a dataset" />
             </SelectTrigger>
             <SelectContent>
+              {totalDeliveredCount > 0 && (
+                <SelectItem value={ALL_DATASETS_VALUE}>
+                  All Datasets ({totalDeliveredCount} delivered)
+                </SelectItem>
+              )}
               {datasets?.map((ds) => (
                 <SelectItem key={ds.id} value={ds.id}>
                   {ds.name} ({ds.deliveredCount} delivered)
@@ -131,7 +153,7 @@ function ExportPage() {
             <div>
               <CardTitle>Delivered Jobs</CardTitle>
               <CardDescription>
-                {jobs.length} delivered job(s) in this dataset
+                {jobsDescription}
               </CardDescription>
             </div>
             <ExportControls
@@ -152,6 +174,7 @@ function ExportPage() {
               onPageChange={handlePageChange}
               onPageSizeChange={handlePageSizeChange}
               onPreview={handlePreview}
+              showDatasetColumn={isAllDatasets}
             />
           </CardContent>
         </Card>

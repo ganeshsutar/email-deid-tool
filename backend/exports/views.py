@@ -3,8 +3,7 @@ import uuid
 import zipfile
 
 from django.conf import settings
-from django.db.models import Count, Q, Subquery, OuterRef, IntegerField
-from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Q, Subquery, OuterRef
 from django.http import FileResponse
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
@@ -83,6 +82,41 @@ class ExportViewSet(ViewSet):
         ]
         return Response(DatasetWithDeliveredSerializer(data, many=True).data)
 
+    def list_all_delivered_jobs(self, request):
+        """List all delivered jobs across all datasets."""
+        latest_version_id = Subquery(
+            AnnotationVersion.objects.filter(job=OuterRef("pk"))
+            .order_by("-version_number")
+            .values("id")[:1]
+        )
+
+        jobs = (
+            Job.objects.filter(status=Job.Status.DELIVERED)
+            .select_related("assigned_annotator", "assigned_qa", "dataset")
+            .annotate(latest_version_id=latest_version_id)
+            .annotate(
+                annotation_count=Count(
+                    "annotation_versions__annotations",
+                    filter=Q(annotation_versions__id=F("latest_version_id")),
+                ),
+            )
+            .order_by("-updated_at")
+        )
+
+        result = [
+            {
+                "id": job.id,
+                "file_name": job.file_name,
+                "assigned_annotator": job.assigned_annotator,
+                "assigned_qa": job.assigned_qa,
+                "annotation_count": job.annotation_count,
+                "delivered_date": job.updated_at,
+                "dataset_name": job.dataset.name,
+            }
+            for job in jobs
+        ]
+        return Response(DeliveredJobSerializer(result, many=True).data)
+
     def list_delivered_jobs(self, request, dataset_id):
         try:
             dataset = Dataset.objects.get(id=dataset_id)
@@ -92,30 +126,21 @@ class ExportViewSet(ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Subquery: get the ID of the latest annotation version per job
-        latest_version_subquery = (
+        # Subquery: get the latest version ID per job (single-level OuterRef)
+        latest_version_id = Subquery(
             AnnotationVersion.objects.filter(job=OuterRef("pk"))
             .order_by("-version_number")
             .values("id")[:1]
         )
 
-        # Subquery: count annotations for the latest version
-        annotation_count_subquery = (
-            Annotation.objects.filter(
-                annotation_version_id=Subquery(latest_version_subquery)
-            )
-            .values("annotation_version_id")
-            .annotate(cnt=Count("id"))
-            .values("cnt")
-        )
-
         jobs = (
             Job.objects.filter(dataset=dataset, status=Job.Status.DELIVERED)
             .select_related("assigned_annotator", "assigned_qa")
+            .annotate(latest_version_id=latest_version_id)
             .annotate(
-                annotation_count=Coalesce(
-                    Subquery(annotation_count_subquery, output_field=IntegerField()),
-                    0,
+                annotation_count=Count(
+                    "annotation_versions__annotations",
+                    filter=Q(annotation_versions__id=F("latest_version_id")),
                 ),
             )
             .order_by("-updated_at")
@@ -187,7 +212,7 @@ class ExportViewSet(ViewSet):
         data = [
             {
                 "id": record.id,
-                "dataset_name": record.dataset.name,
+                "dataset_name": record.dataset.name if record.dataset else "Multiple Datasets",
                 "job_count": len(record.job_ids),
                 "file_size": record.file_size,
                 "exported_by": record.exported_by,
@@ -218,15 +243,9 @@ class ExportViewSet(ViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # All jobs should be from the same dataset
+        # Determine dataset: single dataset or multi-dataset export
         dataset_ids = set(jobs.values_list("dataset_id", flat=True))
-        if len(dataset_ids) != 1:
-            return Response(
-                {"detail": "All jobs must belong to the same dataset."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        dataset = jobs.first().dataset
+        dataset = jobs.first().dataset if len(dataset_ids) == 1 else None
         export_id = uuid.uuid4()
         export_dir = os.path.join(settings.MEDIA_ROOT, "exports", str(export_id))
         os.makedirs(export_dir, exist_ok=True)

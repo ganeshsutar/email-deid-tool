@@ -13,6 +13,7 @@ export interface DeliveredJob {
   qaReviewer: { id: string; name: string } | null;
   annotationCount: number;
   deliveredDate: string;
+  datasetName?: string;
 }
 
 export interface ExportRecord {
@@ -71,6 +72,7 @@ export function mapDeliveredJob(
     qaReviewer: data.assigned_qa as { id: string; name: string } | null,
     annotationCount: data.annotation_count as number,
     deliveredDate: data.delivered_date as string,
+    datasetName: (data.dataset_name as string) || undefined,
   };
 }
 

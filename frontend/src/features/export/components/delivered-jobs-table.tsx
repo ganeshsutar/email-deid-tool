@@ -21,6 +21,7 @@ interface DeliveredJobsTableProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   onPreview: (jobId: string) => void;
+  showDatasetColumn?: boolean;
 }
 
 export function DeliveredJobsTable({
@@ -32,6 +33,7 @@ export function DeliveredJobsTable({
   onPageChange,
   onPageSizeChange,
   onPreview,
+  showDatasetColumn = false,
 }: DeliveredJobsTableProps) {
   const visibleJobs = jobs.slice((page - 1) * pageSize, page * pageSize);
 
@@ -83,6 +85,7 @@ export function DeliveredJobsTable({
                 />
               </TableHead>
               <TableHead>File Name</TableHead>
+              {showDatasetColumn && <TableHead>Dataset</TableHead>}
               <TableHead>Annotator</TableHead>
               <TableHead>QA Reviewer</TableHead>
               <TableHead className="text-right">Annotations</TableHead>
@@ -93,7 +96,7 @@ export function DeliveredJobsTable({
           <TableBody>
             {visibleJobs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground h-24" data-testid="delivered-jobs-empty">
+                <TableCell colSpan={showDatasetColumn ? 8 : 7} className="text-center text-muted-foreground h-24" data-testid="delivered-jobs-empty">
                   No delivered jobs found
                 </TableCell>
               </TableRow>
@@ -108,6 +111,9 @@ export function DeliveredJobsTable({
                     />
                   </TableCell>
                   <TableCell className="font-medium">{job.fileName}</TableCell>
+                  {showDatasetColumn && (
+                    <TableCell className="text-muted-foreground">{job.datasetName ?? "—"}</TableCell>
+                  )}
                   <TableCell>{job.annotator?.name ?? "—"}</TableCell>
                   <TableCell>{job.qaReviewer?.name ?? "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">

@@ -16,6 +16,7 @@ class DeliveredJobSerializer(serializers.Serializer):
     assigned_qa = MiniUserSerializer()
     annotation_count = serializers.IntegerField()
     delivered_date = serializers.DateTimeField()
+    dataset_name = serializers.CharField(required=False, default="")
 
 
 class ExportRecordSerializer(serializers.Serializer):

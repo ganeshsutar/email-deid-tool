@@ -8,6 +8,10 @@ urlpatterns = [
         ExportViewSet.as_view({"get": "list_datasets"}),
     ),
     path(
+        "jobs/",
+        ExportViewSet.as_view({"get": "list_all_delivered_jobs"}),
+    ),
+    path(
         "datasets/<uuid:dataset_id>/jobs/",
         ExportViewSet.as_view({"get": "list_delivered_jobs"}),
     ),
