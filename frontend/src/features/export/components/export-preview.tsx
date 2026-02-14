@@ -50,7 +50,7 @@ function OriginalSectionContent({
   const segments = splitTextAtAnnotations(section.content, sectionAnns);
 
   return (
-    <pre className="px-3 py-2 font-mono text-sm leading-5 whitespace-pre-wrap break-words">
+    <pre className="px-3 py-2 font-mono text-sm leading-5 whitespace-pre">
       {segments.map((segment, idx) => {
         if (!segment.isHighlight || !segment.annotation) {
           return <span key={idx}>{segment.text}</span>;
@@ -139,8 +139,8 @@ export function ExportPreviewDialog({
                 value="text"
                 className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden"
               >
-                <ScrollArea className="h-[60vh]">
-                  <div data-testid="original-content">
+                <div className="h-[60vh] overflow-auto">
+                  <div data-testid="original-content" className="min-w-fit">
                     {data.sections.map((section) => (
                       <div key={section.index}>
                         <SectionDivider section={section} />
@@ -151,7 +151,7 @@ export function ExportPreviewDialog({
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
@@ -192,18 +192,18 @@ export function ExportPreviewDialog({
                 value="text"
                 className="flex-1 min-h-0 mt-0 data-[state=inactive]:hidden"
               >
-                <ScrollArea className="h-[60vh]">
-                  <div data-testid="deidentified-content">
+                <div className="h-[60vh] overflow-auto">
+                  <div data-testid="deidentified-content" className="min-w-fit">
                     {deidentifiedSections.map((section) => (
                       <div key={section.index}>
                         <SectionDivider section={section} />
-                        <pre className="px-3 py-2 font-mono text-sm leading-5 whitespace-pre-wrap break-words">
+                        <pre className="px-3 py-2 font-mono text-sm leading-5 whitespace-pre">
                           {section.content}
                         </pre>
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
