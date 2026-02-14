@@ -1,8 +1,9 @@
-import { useEffect } from "react";
-import { Check, Flag, Link2, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Flag, Link2, Minus, Pencil, Plus, Trash2 } from "lucide-react";
 import type { WorkspaceAnnotation } from "@/types/models";
 import type { AnnotationQAStatus } from "@/types/enums";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface AnnotationActionToolbarProps {
   annotation: WorkspaceAnnotation;
@@ -16,6 +17,7 @@ interface AnnotationActionToolbarProps {
   hasOtherTags?: boolean;
   onDelete: () => void;
   onClose: () => void;
+  onChangeTagIndex?: (newIndex: number) => void;
 }
 
 export function AnnotationActionToolbar({
@@ -30,7 +32,18 @@ export function AnnotationActionToolbar({
   hasOtherTags,
   onDelete,
   onClose,
+  onChangeTagIndex,
 }: AnnotationActionToolbarProps) {
+  const tagMatch = annotation.tag.match(/\[(\w+)_(\d+)\]/);
+  const currentIndex = tagMatch ? parseInt(tagMatch[2], 10) : 1;
+  const [indexInput, setIndexInput] = useState(String(currentIndex));
+
+  // Sync local input when annotation tag changes externally
+  useEffect(() => {
+    const m = annotation.tag.match(/\[(\w+)_(\d+)\]/);
+    if (m) setIndexInput(m[2]);
+  }, [annotation.tag]);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -41,9 +54,19 @@ export function AnnotationActionToolbar({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
+  function applyIndex(value: string) {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed >= 1 && onChangeTagIndex) {
+      onChangeTagIndex(parsed);
+      setIndexInput(String(parsed));
+    } else {
+      setIndexInput(String(currentIndex));
+    }
+  }
+
   // Clamp position to viewport
   const toolbarWidth = 288;
-  const toolbarMaxHeight = 140;
+  const toolbarMaxHeight = 170;
   const style: React.CSSProperties = {
     position: "fixed",
     left: Math.min(Math.max(8, position.x - toolbarWidth / 2), window.innerWidth - toolbarWidth - 8),
@@ -73,6 +96,43 @@ export function AnnotationActionToolbar({
               {annotation.tag}
             </span>
           </div>
+          {editMode && onChangeTagIndex && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Index:</span>
+              <Input
+                type="number"
+                min={1}
+                value={indexInput}
+                onChange={(e) => setIndexInput(e.target.value)}
+                onBlur={() => applyIndex(indexInput)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyIndex(indexInput);
+                }}
+                className="w-14 h-6 text-xs text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  disabled={currentIndex <= 1}
+                  onClick={() => onChangeTagIndex(currentIndex - 1)}
+                  title="Decrease index"
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  onClick={() => onChangeTagIndex(currentIndex + 1)}
+                  title="Increase index"
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground font-mono truncate">
             &ldquo;{annotation.originalText}&rdquo;
           </p>

@@ -302,25 +302,31 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
       </div>
 
       {/* Annotation action toolbar */}
-      {toolbarAnnotation && !isReadOnly && (
-        <AnnotationActionToolbar
-          annotation={toolbarAnnotation}
-          position={toolbarPosition}
-          onEdit={() => handleEdit(toolbarAnnotation.id)}
-          onDelete={() => workspace.deleteAnnotation(toolbarAnnotation.id)}
-          onClose={() => setToolbarAnnotation(null)}
-          onChangeTag={() => {
-            setTagReassignAnnotation(toolbarAnnotation);
-            setToolbarAnnotation(null);
-          }}
-          hasOtherTags={
-            workspace.getExistingTagsForClass(
-              toolbarAnnotation.className,
-              toolbarAnnotation.tag,
-            ).length > 0
-          }
-        />
-      )}
+      {toolbarAnnotation && !isReadOnly && (() => {
+        const liveAnnotation = workspace.annotations.find((a) => a.id === toolbarAnnotation.id) ?? toolbarAnnotation;
+        return (
+          <AnnotationActionToolbar
+            annotation={liveAnnotation}
+            position={toolbarPosition}
+            onEdit={() => handleEdit(liveAnnotation.id)}
+            onDelete={() => workspace.deleteAnnotation(liveAnnotation.id)}
+            onClose={() => setToolbarAnnotation(null)}
+            onChangeTag={() => {
+              setTagReassignAnnotation(liveAnnotation);
+              setToolbarAnnotation(null);
+            }}
+            hasOtherTags={
+              workspace.getExistingTagsForClass(
+                liveAnnotation.className,
+                liveAnnotation.tag,
+              ).length > 0
+            }
+            onChangeTagIndex={(newIndex) => {
+              workspace.changeTagIndex(liveAnnotation.id, liveAnnotation.tag, newIndex);
+            }}
+          />
+        );
+      })()}
 
       {/* Class selection popup */}
       {workspace.classPopupOpen && annotationClasses && (

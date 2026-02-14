@@ -1,11 +1,10 @@
-import { Eye, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ExportControlsProps {
   selectedCount: number;
   totalCount: number;
   isExporting: boolean;
-  onPreview: () => void;
   onExportSelected: () => void;
   onExportAll: () => void;
 }
@@ -14,22 +13,11 @@ export function ExportControls({
   selectedCount,
   totalCount,
   isExporting,
-  onPreview,
   onExportSelected,
   onExportAll,
 }: ExportControlsProps) {
   return (
     <div className="flex items-center gap-3">
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={selectedCount !== 1}
-        onClick={onPreview}
-        data-testid="preview-button"
-      >
-        <Eye className="h-4 w-4 mr-1.5" />
-        Preview Selected
-      </Button>
       <Button
         size="sm"
         disabled={selectedCount === 0 || isExporting}

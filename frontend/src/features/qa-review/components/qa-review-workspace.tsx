@@ -359,21 +359,27 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
       </div>
 
       {/* Annotation action toolbar */}
-      {toolbarAnnotation && !isReadOnly && (
-        <AnnotationActionToolbar
-          annotation={toolbarAnnotation}
-          status={review.annotationStatuses.get(toolbarAnnotation.id) ?? AnnotationQAStatus.PENDING}
-          position={toolbarPosition}
-          editMode={review.editModeEnabled}
-          onMarkOK={() => review.markOK(toolbarAnnotation.id)}
-          onFlag={() => review.flagAnnotation(toolbarAnnotation.id)}
-          onEdit={() => handleToolbarEdit(toolbarAnnotation.id)}
-          onChangeTag={review.editModeEnabled ? () => setTagReassignAnnotation(toolbarAnnotation) : undefined}
-          hasOtherTags={review.editModeEnabled ? review.getExistingTagsForClass(toolbarAnnotation.className, toolbarAnnotation.tag).length > 0 : false}
-          onDelete={() => review.deleteAnnotation(toolbarAnnotation.id)}
-          onClose={() => setToolbarAnnotation(null)}
-        />
-      )}
+      {toolbarAnnotation && !isReadOnly && (() => {
+        const liveAnnotation = review.currentAnnotations.find((a) => a.id === toolbarAnnotation.id) ?? toolbarAnnotation;
+        return (
+          <AnnotationActionToolbar
+            annotation={liveAnnotation}
+            status={review.annotationStatuses.get(liveAnnotation.id) ?? AnnotationQAStatus.PENDING}
+            position={toolbarPosition}
+            editMode={review.editModeEnabled}
+            onMarkOK={() => review.markOK(liveAnnotation.id)}
+            onFlag={() => review.flagAnnotation(liveAnnotation.id)}
+            onEdit={() => handleToolbarEdit(liveAnnotation.id)}
+            onChangeTag={review.editModeEnabled ? () => setTagReassignAnnotation(liveAnnotation) : undefined}
+            hasOtherTags={review.editModeEnabled ? review.getExistingTagsForClass(liveAnnotation.className, liveAnnotation.tag).length > 0 : false}
+            onDelete={() => review.deleteAnnotation(liveAnnotation.id)}
+            onClose={() => setToolbarAnnotation(null)}
+            onChangeTagIndex={review.editModeEnabled ? (newIndex) => {
+              review.changeTagIndex(liveAnnotation.id, liveAnnotation.tag, newIndex);
+            } : undefined}
+          />
+        );
+      })()}
 
       {/* Class selection popup for edit mode (add new annotations) */}
       {classPopupOpen && annotationClasses && (

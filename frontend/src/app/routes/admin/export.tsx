@@ -34,6 +34,8 @@ function ExportPage() {
   );
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const { data: datasets } = useExportDatasets();
   const { data: jobs } = useDeliveredJobs(selectedDatasetId);
@@ -45,21 +47,27 @@ function ExportPage() {
     setSelectedDatasetId(value);
     setSelectedJobIds(new Set());
     setPreviewJobId(null);
+    setPage(1);
   }, []);
 
-  const handlePreview = useCallback(() => {
-    const ids = Array.from(selectedJobIds);
-    if (ids.length === 1) {
-      setPreviewJobId(ids[0]);
-    }
-  }, [selectedJobIds]);
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+  }, []);
+
+  const handlePageSizeChange = useCallback((newPageSize: number) => {
+    setPageSize(newPageSize);
+    setPage(1);
+  }, []);
+
+  const handlePreview = useCallback((jobId: string) => {
+    setPreviewJobId(jobId);
+  }, []);
 
   const handleExportSelected = useCallback(() => {
     createExport.mutate(
       { jobIds: Array.from(selectedJobIds) },
       {
         onSuccess: (data) => {
-          // Trigger download
           window.open(data.downloadUrl, "_blank");
         },
       },
@@ -130,7 +138,6 @@ function ExportPage() {
               selectedCount={selectedJobIds.size}
               totalCount={jobs.length}
               isExporting={createExport.isPending}
-              onPreview={handlePreview}
               onExportSelected={handleExportSelected}
               onExportAll={handleExportAll}
             />
@@ -140,6 +147,11 @@ function ExportPage() {
               jobs={jobs}
               selectedIds={selectedJobIds}
               onSelectionChange={setSelectedJobIds}
+              page={page}
+              pageSize={pageSize}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              onPreview={handlePreview}
             />
           </CardContent>
         </Card>

@@ -265,6 +265,33 @@ export function useQAReview(jobId: string) {
     setDirtyTick((t) => t + 1);
   }, []);
 
+  const changeTagIndex = useCallback((annotationId: string, currentTag: string, newIndex: number) => {
+    const tagMatch = currentTag.match(/\[(\w+)_(\d+)\]/);
+    if (!tagMatch) return;
+    const className = tagMatch[1];
+    const newTag = `[${className}_${newIndex}]`;
+
+    setCurrentAnnotations((prev) =>
+      prev.map((ann) => {
+        if (ann.id !== annotationId) return ann;
+        return { ...ann, tag: newTag };
+      }),
+    );
+    setAnnotationStatuses((prev) => {
+      const next = new Map(prev);
+      if (prev.get(annotationId) !== AnnotationQAStatus.QA_ADDED) {
+        next.set(annotationId, AnnotationQAStatus.OK);
+      }
+      return next;
+    });
+    setModifications((prev) => [
+      ...prev,
+      { type: "modified", annotationId, description: `Changed tag index to ${newIndex}` },
+    ]);
+    setIsDirty(true);
+    setDirtyTick((t) => t + 1);
+  }, []);
+
   const getExistingTagsForClass = useCallback(
     (className: string, excludeTag: string): { tag: string; sampleText: string }[] => {
       const tagMap = new Map<string, string>();
@@ -410,6 +437,7 @@ export function useQAReview(jobId: string) {
     deleteAnnotation,
     addAnnotation,
     reassignTag,
+    changeTagIndex,
     getExistingTagsForClass,
     toggleEditMode,
     setAnnotationNote,

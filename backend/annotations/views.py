@@ -312,6 +312,7 @@ class AnnotationViewSet(ViewSet):
         base_queryset = (
             Job.objects.filter(assigned_annotator=request.user)
             .select_related("dataset")
+            .prefetch_related("draft_annotation")
             .order_by("-updated_at")
         )
 

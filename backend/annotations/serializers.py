@@ -164,7 +164,12 @@ class MyAnnotationJobsSerializer(serializers.Serializer):
         )
         if latest_version:
             return latest_version.annotations.count()
-        return 0
+        # Fall back to draft annotation count
+        try:
+            draft = obj.draft_annotation
+        except DraftAnnotation.DoesNotExist:
+            return 0
+        return len(draft.annotations) if draft and draft.annotations else 0
 
     def get_rework_info(self, obj):
         if obj.status not in ("QA_REJECTED", "ANNOTATION_IN_PROGRESS"):
