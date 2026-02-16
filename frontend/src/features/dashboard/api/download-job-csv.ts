@@ -1,12 +1,15 @@
 import { apiClient } from "@/lib/api-client";
 
 interface DownloadJobCsvParams {
-  status: string;
+  status?: string;
   datasetIds?: string[];
 }
 
 export async function downloadJobCsv(params: DownloadJobCsvParams) {
-  const queryParams: Record<string, string> = { status: params.status };
+  const queryParams: Record<string, string> = {};
+  if (params.status) {
+    queryParams.status = params.status;
+  }
   if (params.datasetIds && params.datasetIds.length > 0) {
     queryParams.dataset_ids = params.datasetIds.join(",");
   }
@@ -20,7 +23,9 @@ export async function downloadJobCsv(params: DownloadJobCsvParams) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `jobs_${params.status.toLowerCase()}.csv`;
+  a.download = params.status
+    ? `jobs_${params.status.toLowerCase()}.csv`
+    : "jobs_all.csv";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

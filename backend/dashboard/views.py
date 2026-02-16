@@ -60,7 +60,7 @@ class DashboardViewSet(ViewSet):
                 "total_jobs": Job.objects.count(),
                 "ann_assigned": Job.objects.filter(
                     assigned_annotator__isnull=False
-                ).count(),
+                ).exclude(status=Job.Status.DISCARDED).count(),
                 "ann_in_progress": Job.objects.filter(
                     status=Job.Status.ANNOTATION_IN_PROGRESS
                 ).count(),
@@ -70,7 +70,7 @@ class DashboardViewSet(ViewSet):
                 ).count(),
                 "qa_assigned": Job.objects.filter(
                     assigned_qa__isnull=False
-                ).count(),
+                ).exclude(status=Job.Status.DISCARDED).count(),
                 "qa_in_progress": Job.objects.filter(
                     status=Job.Status.QA_IN_PROGRESS
                 ).count(),
@@ -107,23 +107,42 @@ class DashboardViewSet(ViewSet):
         result = {item["status"]: item["count"] for item in counts}
         return Response(result)
 
+    def job_status_counts_by_dataset(self, request):
+        qs = self._filter_jobs_by_datasets(request)
+        counts = (
+            qs.values("status", "dataset_id", "dataset__name")
+            .annotate(count=Count("id"))
+            .order_by("status", "dataset__name")
+        )
+        return Response(
+            [
+                {
+                    "status": item["status"],
+                    "dataset_id": str(item["dataset_id"]),
+                    "dataset_name": item["dataset__name"],
+                    "count": item["count"],
+                }
+                for item in counts
+            ]
+        )
+
     def job_csv_export(self, request):
         status = request.query_params.get("status")
-        if not status:
-            return Response({"detail": "status query param is required."}, status=400)
-        valid_statuses = {c[0] for c in Job.Status.choices}
-        if status not in valid_statuses:
-            return Response({"detail": f"Invalid status: {status}"}, status=400)
+        if status:
+            valid_statuses = {c[0] for c in Job.Status.choices}
+            if status not in valid_statuses:
+                return Response({"detail": f"Invalid status: {status}"}, status=400)
 
-        qs = self._filter_jobs_by_datasets(request).filter(status=status)
+        qs = self._filter_jobs_by_datasets(request)
+        if status:
+            qs = qs.filter(status=status)
         qs = qs.select_related(
             "dataset", "assigned_annotator", "assigned_qa", "discarded_by"
         ).order_by("created_at")
 
+        filename = f"jobs_{status.lower()}.csv" if status else "jobs_all.csv"
         response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = (
-            f'attachment; filename="jobs_{status.lower()}.csv"'
-        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         writer = csv.writer(response)
         writer.writerow([

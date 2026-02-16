@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import type { EmailSection, WorkspaceAnnotation } from "@/types/models";
 import { buildDeidentifiedEml, deidentifySections } from "@/lib/deidentify";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { EmailViewer } from "@/components/email-viewer";
 
@@ -43,7 +42,7 @@ export function EmailPreview({ rawContent, sections, annotations }: EmailPreview
           </ToggleGroupItem>
         </ToggleGroup>
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-auto">
         {viewMode === "email" ? (
           <DeidentifiedEmailView sections={sections} annotations={annotations} />
         ) : (
@@ -57,9 +56,9 @@ export function EmailPreview({ rawContent, sections, annotations }: EmailPreview
 /** Original preview — used when no annotations are present */
 function OriginalEmailPreview({ rawContent }: { rawContent: string }) {
   return (
-    <ScrollArea className="h-full">
+    <div className="h-full overflow-auto">
       <EmailViewer rawContent={rawContent} />
-    </ScrollArea>
+    </div>
   );
 }
 
@@ -92,7 +91,7 @@ function DeidentifiedSectionTextView({
   );
 
   return (
-    <ScrollArea className="h-full">
+    <div className="h-full overflow-auto">
       {deidentified.map((section) => (
         <div key={section.index}>
           <div className="flex items-center gap-2 border-y bg-muted px-3 py-1.5 sticky top-0 z-10">
@@ -104,7 +103,7 @@ function DeidentifiedSectionTextView({
           <SectionTextBlock content={section.content} />
         </div>
       ))}
-    </ScrollArea>
+    </div>
   );
 }
 

@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Download } from "lucide-react";
+import { Check, ChevronsUpDown, Download, Layers, BarChart3 } from "lucide-react";
 import {
   Card,
   CardAction,
@@ -27,12 +34,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { useJobStatusCounts } from "@/features/dashboard/api/get-job-status-counts";
+import {
+  useJobStatusCounts,
+  useJobStatusCountsByDataset,
+} from "@/features/dashboard/api/get-job-status-counts";
 import { useDatasetOptions } from "@/features/dashboard/api/get-dataset-options";
 import { downloadJobCsv } from "@/features/dashboard/api/download-job-csv";
 import { cn } from "@/lib/utils";
@@ -45,7 +61,6 @@ const STATUS_LABELS: Record<string, string> = {
   ASSIGNED_QA: "QA Assigned",
   QA_IN_PROGRESS: "In QA",
   QA_REJECTED: "Rejected",
-  QA_ACCEPTED: "Accepted",
   DELIVERED: "Delivered",
   DISCARDED: "Discarded",
 };
@@ -58,12 +73,19 @@ const STATUS_ORDER = [
   "ASSIGNED_QA",
   "QA_IN_PROGRESS",
   "QA_REJECTED",
-  "QA_ACCEPTED",
   "DELIVERED",
   "DISCARDED",
 ];
 
-const chartConfig = {
+const CHART_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+const simpleChartConfig = {
   count: {
     label: "Jobs",
     color: "var(--chart-1)",
@@ -72,12 +94,19 @@ const chartConfig = {
 
 export function JobStatusChart() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [stacked, setStacked] = useState(false);
   const { data: datasets } = useDatasetOptions();
-  const { data: statusCounts } = useJobStatusCounts(
-    selectedIds.length > 0 ? { datasetIds: selectedIds } : {},
+
+  const queryParams =
+    selectedIds.length > 0 ? { datasetIds: selectedIds } : {};
+  const { data: statusCounts } = useJobStatusCounts(queryParams);
+  const { data: byDatasetCounts } = useJobStatusCountsByDataset(
+    queryParams,
+    stacked,
   );
 
-  const data = useMemo(() => {
+  // Simple (non-stacked) chart data
+  const simpleData = useMemo(() => {
     if (!statusCounts) return [];
     return STATUS_ORDER.map((status) => ({
       status: STATUS_LABELS[status] ?? status,
@@ -86,9 +115,54 @@ export function JobStatusChart() {
     }));
   }, [statusCounts]);
 
+  // Stacked chart data + config
+  const { stackedData, stackedConfig, datasetNames } = useMemo(() => {
+    if (!byDatasetCounts || byDatasetCounts.length === 0) {
+      return { stackedData: [], stackedConfig: {} as ChartConfig, datasetNames: [] as string[] };
+    }
+
+    // Collect unique dataset names in order
+    const names: string[] = [];
+    for (const item of byDatasetCounts) {
+      if (!names.includes(item.dataset_name)) {
+        names.push(item.dataset_name);
+      }
+    }
+
+    // Build rows: one per status
+    const rows = STATUS_ORDER.map((status) => {
+      const row: Record<string, string | number> = {
+        status: STATUS_LABELS[status] ?? status,
+        statusKey: status,
+      };
+      for (const name of names) {
+        row[name] = 0;
+      }
+      for (const item of byDatasetCounts) {
+        if (item.status === status) {
+          row[item.dataset_name] = item.count;
+        }
+      }
+      return row;
+    });
+
+    // Build chart config
+    const config: ChartConfig = {};
+    for (let i = 0; i < names.length; i++) {
+      config[names[i]] = {
+        label: names[i],
+        color: CHART_COLORS[i % CHART_COLORS.length],
+      };
+    }
+
+    return { stackedData: rows, stackedConfig: config, datasetNames: names };
+  }, [byDatasetCounts]);
+
+  const data = stacked ? stackedData : simpleData;
+
   const nonZeroStatuses = useMemo(
-    () => data.filter((d) => d.count > 0),
-    [data],
+    () => simpleData.filter((d) => d.count > 0),
+    [simpleData],
   );
 
   const toggleDataset = (id: string) => {
@@ -106,7 +180,7 @@ export function JobStatusChart() {
     return `${selectedIds.length} Datasets`;
   }, [selectedIds, datasets]);
 
-  const handleDownload = async (status: string) => {
+  const handleDownload = async (status?: string) => {
     try {
       await downloadJobCsv({
         status,
@@ -118,6 +192,8 @@ export function JobStatusChart() {
     }
   };
 
+  const activeConfig = stacked ? stackedConfig : simpleChartConfig;
+
   return (
     <Card>
       <CardHeader>
@@ -125,6 +201,30 @@ export function JobStatusChart() {
         <CardDescription>Current count of jobs by status</CardDescription>
         <CardAction>
           <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setStacked((v) => !v)}
+                  >
+                    {stacked ? (
+                      <BarChart3 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Layers className="h-3.5 w-3.5" />
+                    )}
+                    <span className="sr-only">
+                      {stacked ? "Simple view" : "Stack by dataset"}
+                    </span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {stacked ? "Switch to simple view" : "Stack by dataset"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -187,6 +287,12 @@ export function JobStatusChart() {
                   Download CSV — {datasetLabel}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleDownload(undefined)}
+                >
+                  All Statuses
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 {nonZeroStatuses.map((item) => (
                   <DropdownMenuItem
                     key={item.statusKey}
@@ -201,7 +307,7 @@ export function JobStatusChart() {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={activeConfig} className={cn("w-full", stacked ? "h-[340px]" : "h-[300px]")}>
           <BarChart
             data={data}
             margin={{ left: 10, right: 10, bottom: 40 }}
@@ -221,11 +327,35 @@ export function JobStatusChart() {
               cursor={false}
               content={<ChartTooltipContent />}
             />
-            <Bar
-              dataKey="count"
-              fill="var(--color-count)"
-              radius={[4, 4, 0, 0]}
-            />
+            {stacked
+              ? datasetNames.map((name, i) => (
+                  <Bar
+                    key={name}
+                    dataKey={name}
+                    stackId="a"
+                    fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    radius={
+                      i === datasetNames.length - 1
+                        ? [4, 4, 0, 0]
+                        : [0, 0, 0, 0]
+                    }
+                  />
+                ))
+              : null}
+            {stacked ? (
+              <Legend
+                verticalAlign="top"
+                align="center"
+                wrapperStyle={{ paddingBottom: 8 }}
+              />
+            ) : null}
+            {!stacked ? (
+              <Bar
+                dataKey="count"
+                fill="var(--color-count)"
+                radius={[4, 4, 0, 0]}
+              />
+            ) : null}
           </BarChart>
         </ChartContainer>
       </CardContent>

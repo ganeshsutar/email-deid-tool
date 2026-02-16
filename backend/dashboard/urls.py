@@ -12,6 +12,10 @@ urlpatterns = [
         DashboardViewSet.as_view({"get": "job_status_counts"}),
     ),
     path(
+        "job-status-counts-by-dataset/",
+        DashboardViewSet.as_view({"get": "job_status_counts_by_dataset"}),
+    ),
+    path(
         "recent-datasets/",
         DashboardViewSet.as_view({"get": "recent_datasets"}),
     ),

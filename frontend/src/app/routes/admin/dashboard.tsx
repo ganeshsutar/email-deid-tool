@@ -1,3 +1,4 @@
+import { type ReactNode, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useDashboardStats } from "@/features/dashboard/api/get-dashboard-stats";
+import { useJobStatusCounts } from "@/features/dashboard/api/get-job-status-counts";
 import { useRecentDatasets } from "@/features/dashboard/api/get-recent-datasets";
 import { StatsCards } from "@/features/dashboard/components/stats-cards";
 import { JobStatusChart } from "@/features/dashboard/components/job-status-chart";
@@ -26,6 +28,7 @@ import { RecentDatasetsTable } from "@/features/dashboard/components/recent-data
 import { AnnotatorPerformanceTable } from "@/features/dashboard/components/annotator-performance-table";
 import { QAPerformanceTable } from "@/features/dashboard/components/qa-performance-table";
 import { QuickActions } from "@/features/dashboard/components/quick-actions";
+import type { DashboardStats } from "@/features/dashboard/api/dashboard-mapper";
 
 export const Route = createFileRoute("/admin/dashboard")({
   component: AdminDashboardPage,
@@ -96,44 +99,199 @@ function AdminDashboardPage() {
   );
 }
 
-const STATS_INFO_SECTIONS = [
-  {
-    title: "Overview",
-    rows: [
-      { card: "Total Datasets", description: "Total number of datasets uploaded" },
-      { card: "Total Jobs", description: "Total number of jobs across all datasets" },
-      { card: "Delivered", description: "Jobs with status DELIVERED" },
-      { card: "Discarded", description: "Jobs with status DISCARDED" },
-    ],
-  },
-  {
-    title: "Annotation",
-    rows: [
-      { card: "Assigned", description: "Jobs that have an annotator assigned (any status)" },
-      { card: "In Progress", description: "Jobs with status ANNOTATION_IN_PROGRESS" },
-      {
-        card: "Completed",
-        description:
-          "Jobs with an annotator assigned and status in: SUBMITTED_FOR_QA, ASSIGNED_QA, QA_IN_PROGRESS, QA_ACCEPTED, QA_REJECTED, DELIVERED",
-      },
-    ],
-    note: "Annotation Completed includes QA_REJECTED because the annotator did complete their annotation — the rejection happened during QA review.",
-  },
-  {
-    title: "QA Review",
-    rows: [
-      { card: "Assigned", description: "Jobs that have a QA reviewer assigned (any status)" },
-      { card: "In Progress", description: "Jobs with status QA_IN_PROGRESS" },
-      {
-        card: "Completed",
-        description:
-          "Jobs with a QA reviewer assigned and status in: QA_ACCEPTED, QA_REJECTED, DELIVERED",
-      },
-    ],
-  },
+const STATUS_LABELS: Record<string, string> = {
+  UPLOADED: "Uploaded",
+  ASSIGNED_ANNOTATOR: "Assigned",
+  ANNOTATION_IN_PROGRESS: "Annotating",
+  SUBMITTED_FOR_QA: "Submitted",
+  ASSIGNED_QA: "QA Assigned",
+  QA_IN_PROGRESS: "In QA",
+  QA_REJECTED: "Rejected",
+  DELIVERED: "Delivered",
+  DISCARDED: "Discarded",
+};
+
+const STATUS_ORDER = [
+  "UPLOADED",
+  "ASSIGNED_ANNOTATOR",
+  "ANNOTATION_IN_PROGRESS",
+  "SUBMITTED_FOR_QA",
+  "ASSIGNED_QA",
+  "QA_IN_PROGRESS",
+  "QA_REJECTED",
+  "DELIVERED",
+  "DISCARDED",
 ] as const;
 
+function N({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={`font-mono tabular-nums ${className ?? ""}`}>
+      {children}
+    </span>
+  );
+}
+
+function statusTerm(counts: Record<string, number>, key: string): ReactNode {
+  return (
+    <>
+      {STATUS_LABELS[key] ?? key}(<N>{counts[key] ?? 0}</N>)
+    </>
+  );
+}
+
+function sumFormula(
+  counts: Record<string, number>,
+  keys: string[],
+  total: number,
+): ReactNode {
+  return (
+    <span className="leading-relaxed">
+      {keys.map((key, i) => (
+        <span key={key}>
+          {i > 0 && " + "}
+          {statusTerm(counts, key)}
+        </span>
+      ))}{" "}
+      = <N className="font-semibold">{total}</N>
+    </span>
+  );
+}
+
+interface StatsInfoSection {
+  title: string;
+  rows: { card: string; description: ReactNode }[];
+  note?: string;
+}
+
+function buildStatsInfoSections(
+  counts: Record<string, number>,
+  stats: DashboardStats,
+): StatsInfoSection[] {
+  const c = (key: string) => counts[key] ?? 0;
+
+  const annCompletedKeys = [
+    "SUBMITTED_FOR_QA",
+    "ASSIGNED_QA",
+    "QA_IN_PROGRESS",
+    "QA_REJECTED",
+    "DELIVERED",
+  ];
+  const qaCompletedKeys = ["QA_REJECTED", "DELIVERED"];
+  const allKeys = STATUS_ORDER as unknown as string[];
+  const allSum = allKeys.reduce((s, k) => s + c(k), 0);
+
+  return [
+    {
+      title: "Overview",
+      rows: [
+        {
+          card: "Total Datasets",
+          description: (
+            <>
+              Count of all datasets = <N className="font-semibold">{stats.totalDatasets}</N>
+            </>
+          ),
+        },
+        {
+          card: "Total Jobs",
+          description: sumFormula(counts, allKeys, allSum),
+        },
+        {
+          card: "Delivered",
+          description: (
+            <>
+              {STATUS_LABELS.DELIVERED} = <N className="font-semibold">{c("DELIVERED")}</N>
+            </>
+          ),
+        },
+        {
+          card: "Discarded",
+          description: (
+            <>
+              {STATUS_LABELS.DISCARDED} = <N className="font-semibold">{c("DISCARDED")}</N>
+            </>
+          ),
+        },
+      ],
+    },
+    {
+      title: "Annotation",
+      rows: [
+        {
+          card: "Assigned",
+          description: (
+            <>
+              Has annotator assigned, excl. discarded ={" "}
+              <N className="font-semibold">{stats.annAssigned}</N>
+            </>
+          ),
+        },
+        {
+          card: "In Progress",
+          description: (
+            <>
+              {STATUS_LABELS.ANNOTATION_IN_PROGRESS} ={" "}
+              <N className="font-semibold">{c("ANNOTATION_IN_PROGRESS")}</N>
+            </>
+          ),
+        },
+        {
+          card: "Completed",
+          description: sumFormula(counts, annCompletedKeys, stats.annCompleted),
+        },
+      ],
+      note: "Annotation Completed includes Rejected because the annotator did complete their annotation — the rejection happened during QA review.",
+    },
+    {
+      title: "QA Review",
+      rows: [
+        {
+          card: "Assigned",
+          description: (
+            <>
+              Has QA reviewer assigned, excl. discarded ={" "}
+              <N className="font-semibold">{stats.qaAssigned}</N>
+            </>
+          ),
+        },
+        {
+          card: "In Progress",
+          description: (
+            <>
+              {STATUS_LABELS.QA_IN_PROGRESS} ={" "}
+              <N className="font-semibold">{c("QA_IN_PROGRESS")}</N>
+            </>
+          ),
+        },
+        {
+          card: "Completed",
+          description: sumFormula(counts, qaCompletedKeys, stats.qaCompleted),
+        },
+      ],
+    },
+  ];
+}
+
 function StatsInfoDialog() {
+  const { data: stats } = useDashboardStats();
+  const { data: statusCounts } = useJobStatusCounts();
+
+  const counts = statusCounts ?? {};
+
+  const sections = useMemo(
+    () =>
+      stats
+        ? buildStatsInfoSections(counts, stats)
+        : null,
+    [counts, stats],
+  );
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -142,49 +300,68 @@ function StatsInfoDialog() {
           Stats Info
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-6xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Stats Card Reference</DialogTitle>
           <DialogDescription>
-            What each dashboard stat card counts and which job statuses it
-            includes.
+            What each dashboard stat card counts and how values are computed from
+            job status distribution.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-6 mt-2">
-          {STATS_INFO_SECTIONS.map((section) => (
-            <div key={section.title} className="space-y-2">
-              <h3 className="text-sm font-semibold">{section.title}</h3>
-              <div className="rounded-md border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="px-3 py-2 text-left font-medium">Card</th>
-                      <th className="px-3 py-2 text-left font-medium">
-                        Description
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {section.rows.map((row) => (
-                      <tr key={row.card} className="border-b last:border-0">
-                        <td className="px-3 py-2 font-medium whitespace-nowrap">
-                          {row.card}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {row.description}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {"note" in section && section.note && (
-                <p className="text-xs text-muted-foreground italic">
-                  {section.note}
-                </p>
-              )}
+        <div className="space-y-4 mt-2">
+          {sections ? (
+            <div className="grid grid-cols-3 gap-4">
+              {sections.map((section) => (
+                <div key={section.title} className="space-y-2">
+                  <h3 className="text-sm font-semibold">{section.title}</h3>
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="px-3 py-2 text-left font-medium">
+                            Card
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium">
+                            Formula
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {section.rows.map((row) => (
+                          <tr
+                            key={row.card}
+                            className="border-b last:border-0"
+                          >
+                            <td className="px-3 py-2 font-medium whitespace-nowrap">
+                              {row.card}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {row.description}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {section.note && (
+                    <p className="text-xs text-muted-foreground italic">
+                      {section.note}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-3 gap-4">
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="space-y-1 text-xs text-muted-foreground">
             <h3 className="text-sm font-semibold text-foreground">
               Relationships
@@ -197,6 +374,39 @@ function StatsInfoDialog() {
                 Annotation Completed &ge; QA Assigned
               </li>
             </ul>
+          </div>
+
+          {/* Job Status Distribution */}
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">Job Status Distribution</h3>
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    {STATUS_ORDER.map((key) => (
+                      <th
+                        key={key}
+                        className="px-3 py-2 text-center font-medium whitespace-nowrap"
+                      >
+                        {STATUS_LABELS[key]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {STATUS_ORDER.map((key) => (
+                      <td
+                        key={key}
+                        className="px-3 py-2 text-center font-mono tabular-nums"
+                      >
+                        {counts[key] ?? 0}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </DialogContent>
