@@ -28,7 +28,7 @@ function StatCard({
   icon,
 }: {
   title: string;
-  value: number;
+  value: ReactNode;
   icon: ReactNode;
 }) {
   return (
@@ -59,12 +59,12 @@ export function StatsCards({ stats }: StatsCardsProps) {
         />
         <StatCard
           title="Delivered"
-          value={stats.delivered}
+          value={stats.totalJobs > 0 ? `${stats.delivered} (${((stats.delivered / stats.totalJobs) * 100).toFixed(2)}%)` : stats.delivered}
           icon={<PackageCheck className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           title="Discarded"
-          value={stats.discarded}
+          value={stats.totalJobs > 0 ? `${stats.discarded} (${((stats.discarded / stats.totalJobs) * 100).toFixed(2)}%)` : stats.discarded}
           icon={<Ban className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
