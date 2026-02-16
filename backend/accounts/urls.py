@@ -21,4 +21,5 @@ urlpatterns = [
         views.ResetPasswordView.as_view(),
         name="auth-reset-password",
     ),
+    path("avatar/", views.UpdateAvatarView.as_view(), name="auth-avatar"),
 ]

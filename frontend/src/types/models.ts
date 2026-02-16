@@ -7,6 +7,28 @@ import type {
   QADecision,
 } from "./enums";
 
+export interface AvatarConfig {
+  seed?: string;
+  top?: string;
+  accessories?: string;
+  accessoriesProbability?: string;
+  hairColor?: string;
+  facialHair?: string;
+  facialHairProbability?: string;
+  clothing?: string;
+  clothingGraphic?: string;
+  eyes?: string;
+  eyebrows?: string;
+  mouth?: string;
+  skinColor?: string;
+  nose?: string;
+  hatColor?: string;
+  clothesColor?: string;
+  accessoriesColor?: string;
+  facialHairColor?: string;
+  style?: string;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -14,6 +36,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   forcePasswordChange: boolean;
+  avatarConfig: AvatarConfig | null;
   createdAt: string;
 }
 

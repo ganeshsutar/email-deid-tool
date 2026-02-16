@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronsUpDown,
@@ -12,8 +13,8 @@ import {
   Paintbrush,
   Radius,
   Check,
+  UserRoundCog,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,8 @@ import {
   NEUTRAL_SWATCH_COLORS,
   BASE_SWATCH_COLORS,
 } from "@/lib/theme";
+import { UserAvatar } from "@/components/user-avatar";
+import { AvatarChangeDialog } from "@/components/avatar-change-dialog";
 
 const STYLE_OPTIONS = Object.values(StylePreset);
 const NEUTRAL_OPTIONS = Object.values(NeutralColor);
@@ -61,12 +64,7 @@ export function SidebarUser() {
     setRadius,
     setMode,
   } = useTheme();
-
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -83,9 +81,13 @@ export function SidebarUser() {
               data-testid="user-menu-trigger"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg">
-                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={user.name}
+                email={user.email}
+                avatarConfig={user.avatarConfig}
+                className="h-8 w-8 rounded-lg"
+                fallbackClassName="rounded-lg"
+              />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs text-muted-foreground">{user.email}</span>
@@ -101,9 +103,13 @@ export function SidebarUser() {
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  name={user.name}
+                  email={user.email}
+                  avatarConfig={user.avatarConfig}
+                  className="h-8 w-8 rounded-lg"
+                  fallbackClassName="rounded-lg"
+                />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">{user.email}</span>
@@ -233,6 +239,10 @@ export function SidebarUser() {
 
             <DropdownMenuSeparator />
 
+            <DropdownMenuItem onSelect={() => setAvatarDialogOpen(true)}>
+              <UserRoundCog className="mr-2 h-4 w-4" />
+              Change Avatar
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/admin/settings">
                 <Settings className="mr-2 h-4 w-4" />
@@ -254,6 +264,7 @@ export function SidebarUser() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <AvatarChangeDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />
       </SidebarMenuItem>
     </SidebarMenu>
   );

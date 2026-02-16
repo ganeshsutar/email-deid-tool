@@ -21,6 +21,7 @@ from .serializers import (
     ForgotPasswordSerializer,
     LoginSerializer,
     ResetPasswordSerializer,
+    UpdateAvatarSerializer,
     UpdateUserSerializer,
     UserSerializer,
 )
@@ -87,6 +88,17 @@ class ResetPasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         # Stub — no email service configured
         return Response({"detail": "Password has been reset."})
+
+
+class UpdateAvatarView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        serializer = UpdateAvatarSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        request.user.avatar_config = serializer.validated_data["avatar_config"]
+        request.user.save(update_fields=["avatar_config"])
+        return Response(UserSerializer(request.user).data)
 
 
 def _generate_temp_password(length=12):

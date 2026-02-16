@@ -33,9 +33,47 @@ class UserSerializer(serializers.ModelSerializer):
             "role",
             "status",
             "force_password_change",
+            "avatar_config",
             "created_at",
         ]
         read_only_fields = fields
+
+
+ALLOWED_AVATAR_KEYS = {
+    "seed",
+    "top",
+    "accessories",
+    "accessoriesProbability",
+    "hairColor",
+    "facialHair",
+    "facialHairProbability",
+    "clothing",
+    "clothingGraphic",
+    "eyes",
+    "eyebrows",
+    "mouth",
+    "skinColor",
+    "nose",
+    "hatColor",
+    "clothesColor",
+    "accessoriesColor",
+    "facialHairColor",
+    "style",
+}
+
+
+class UpdateAvatarSerializer(serializers.Serializer):
+    avatar_config = serializers.JSONField()
+
+    def validate_avatar_config(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("avatar_config must be a JSON object.")
+        invalid_keys = set(value.keys()) - ALLOWED_AVATAR_KEYS
+        if invalid_keys:
+            raise serializers.ValidationError(
+                f"Invalid keys: {', '.join(sorted(invalid_keys))}"
+            )
+        return value
 
 
 class ChangePasswordSerializer(serializers.Serializer):

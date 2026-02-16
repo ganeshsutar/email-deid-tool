@@ -38,6 +38,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.ANNOTATOR)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     force_password_change = models.BooleanField(default=False)
+    avatar_config = models.JSONField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
