@@ -46,6 +46,7 @@ class DashboardViewSet(ViewSet):
             Job.Status.ASSIGNED_QA,
             Job.Status.QA_IN_PROGRESS,
             Job.Status.QA_ACCEPTED,
+            Job.Status.QA_REJECTED,
             Job.Status.DELIVERED,
         ]
         qa_completed_statuses = [
