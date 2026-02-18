@@ -31,7 +31,8 @@ const EMAIL_SAFE_ATTRS = new Set([
 const IFRAME_BASE_STYLES = `
 html, body {
   height: auto !important;
-  overflow: visible !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
 }
 body {
   margin: 0;
@@ -43,7 +44,6 @@ body {
   word-break: break-word;
 }
 img { max-width: 100%; height: auto; }
-table { max-width: 100%; }
 a { color: #1a73e8; }
 `;
 
@@ -157,7 +157,7 @@ export function SanitizedHtmlRenderer({
       style={{
         width: "100%",
         border: "none",
-        overflow: "hidden",
+        overflow: "auto",
         display: "block",
         minHeight: "100px",
       }}

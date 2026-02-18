@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useCreateAnnotationClass } from "@/features/annotation-classes/api/create-annotation-class";
 import { useUpdateAnnotationClass } from "@/features/annotation-classes/api/update-annotation-class";
+import { useRenameAnnotationClass } from "@/features/annotation-classes/api/rename-annotation-class";
 import type { AnnotationClass } from "@/types/models";
 
 const PRESET_COLORS = [
@@ -64,6 +65,7 @@ function AnnotationClassFormContent({
   const isEdit = !!annotationClass;
   const createClass = useCreateAnnotationClass();
   const updateClass = useUpdateAnnotationClass();
+  const renameClass = useRenameAnnotationClass();
 
   const [displayLabel, setDisplayLabel] = useState(
     annotationClass?.displayLabel ?? "",
@@ -97,7 +99,9 @@ function AnnotationClassFormContent({
     }
   }
 
-  const isLoading = createClass.isPending || updateClass.isPending;
+  const nameChanged = isEdit && name !== (annotationClass?.name ?? "");
+  const isLoading =
+    createClass.isPending || updateClass.isPending || renameClass.isPending;
   const isDisabled = !displayLabel || !name || !color || isLoading;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -106,6 +110,12 @@ function AnnotationClassFormContent({
 
     try {
       if (isEdit) {
+        if (nameChanged) {
+          await renameClass.mutateAsync({
+            id: annotationClass.id,
+            name,
+          });
+        }
         await updateClass.mutateAsync({
           id: annotationClass.id,
           display_label: displayLabel,
@@ -173,9 +183,8 @@ function AnnotationClassFormContent({
           <Input
             id="class-name"
             value={name}
-            onChange={(e) => !isEdit && setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. first_name_person"
-            disabled={isEdit}
             className="font-mono"
             data-testid="class-name-input"
           />
@@ -186,6 +195,14 @@ function AnnotationClassFormContent({
                 [{name}_1]
               </code>
             </p>
+          )}
+          {nameChanged && (
+            <Alert>
+              <AlertDescription>
+                Renaming will update all existing annotations and drafts using
+                this class.
+              </AlertDescription>
+            </Alert>
           )}
         </div>
         <div className="space-y-2">

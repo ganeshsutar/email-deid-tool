@@ -1,14 +1,18 @@
 import re
 
+from django.db import transaction
 from django.db.models import Q
+from django.db.models.functions import Replace
+from django.db.models import Value
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from annotations.models import Annotation
+from annotations.models import Annotation, DraftAnnotation
 from core.permissions import IsAdmin, IsAnyRole
+from qa.models import QADraftReview
 
 from .models import AnnotationClass, ExcludedFileHash
 from .serializers import (
@@ -16,6 +20,7 @@ from .serializers import (
     CreateAnnotationClassSerializer,
     CreateExcludedFileHashSerializer,
     ExcludedFileHashSerializer,
+    RenameAnnotationClassSerializer,
     UpdateAnnotationClassSerializer,
 )
 
@@ -88,6 +93,83 @@ class AnnotationClassViewSet(ViewSet):
             {
                 "annotation_class_id": str(annotation_class.id),
                 "annotation_count": count,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def rename(self, request, pk=None):
+        try:
+            annotation_class = AnnotationClass.objects.get(pk=pk, is_deleted=False)
+        except AnnotationClass.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        serializer = RenameAnnotationClassSerializer(
+            data=request.data, context={"instance_pk": pk}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        old_name = annotation_class.name
+        new_name = serializer.validated_data["name"]
+
+        if old_name == new_name:
+            return Response(
+                {
+                    "annotation_class": AnnotationClassSerializer(annotation_class).data,
+                    "updated_annotations": 0,
+                }
+            )
+
+        with transaction.atomic():
+            # 1. Update AnnotationClass name
+            annotation_class.name = new_name
+            annotation_class.save(update_fields=["name"])
+
+            # 2. Bulk update Annotation.class_name
+            annotation_qs = Annotation.objects.filter(annotation_class=annotation_class)
+            updated_count = annotation_qs.update(class_name=new_name)
+
+            # 3. Update Annotation.tag using SQL REPLACE
+            annotation_qs.update(
+                tag=Replace("tag", Value(f"[{old_name}_"), Value(f"[{new_name}_"))
+            )
+
+            # 4. Patch DraftAnnotation JSON
+            for draft in DraftAnnotation.objects.all():
+                annotations = draft.annotations
+                modified = False
+                for item in annotations:
+                    if item.get("class_name") == old_name:
+                        item["class_name"] = new_name
+                        if "tag" in item:
+                            item["tag"] = item["tag"].replace(
+                                f"[{old_name}_", f"[{new_name}_"
+                            )
+                        modified = True
+                if modified:
+                    draft.annotations = annotations
+                    draft.save(update_fields=["annotations"])
+
+            # 5. Patch QADraftReview JSON
+            for draft in QADraftReview.objects.all():
+                data = draft.data
+                qa_annotations = data.get("annotations", [])
+                modified = False
+                for item in qa_annotations:
+                    if item.get("className") == old_name:
+                        item["className"] = new_name
+                        if "tag" in item:
+                            item["tag"] = item["tag"].replace(
+                                f"[{old_name}_", f"[{new_name}_"
+                            )
+                        modified = True
+                if modified:
+                    draft.data = data
+                    draft.save(update_fields=["data"])
+
+        return Response(
+            {
+                "annotation_class": AnnotationClassSerializer(annotation_class).data,
+                "updated_annotations": updated_count,
             }
         )
 

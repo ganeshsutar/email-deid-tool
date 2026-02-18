@@ -89,6 +89,26 @@ class CreateExcludedFileHashSerializer(serializers.Serializer):
             raise serializers.ValidationError("This hash is already in the blocklist.")
         return value
 
+class RenameAnnotationClassSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+
+    def validate_name(self, value):
+        if not re.match(r"^[a-z][a-z0-9_]*$", value):
+            raise serializers.ValidationError(
+                "Name must start with a lowercase letter and contain only "
+                "lowercase letters, digits, and underscores."
+            )
+        instance_pk = self.context.get("instance_pk")
+        qs = AnnotationClass.objects.filter(name=value, is_deleted=False)
+        if instance_pk:
+            qs = qs.exclude(pk=instance_pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "An annotation class with this name already exists."
+            )
+        return value
+
+
 class UpdateAnnotationClassSerializer(serializers.Serializer):
     display_label = serializers.CharField(max_length=100, required=False)
     color = serializers.CharField(max_length=7, required=False)
