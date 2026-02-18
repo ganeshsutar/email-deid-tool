@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Info } from "lucide-react";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
@@ -41,7 +42,75 @@ import type { AnnotatorPerformance } from "../api/dashboard-mapper";
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 type SortKey = keyof AnnotatorPerformance | "pendingJobs";
 
+const STATUS_LABELS: Record<string, string> = {
+  UPLOADED: "Uploaded",
+  ASSIGNED_ANNOTATOR: "Assigned Annotator",
+  ANNOTATION_IN_PROGRESS: "Annotation In Progress",
+  SUBMITTED_FOR_QA: "Submitted for QA",
+  ASSIGNED_QA: "Assigned QA",
+  QA_IN_PROGRESS: "QA In Progress",
+  QA_ACCEPTED: "QA Accepted",
+  QA_REJECTED: "QA Rejected",
+  DELIVERED: "Delivered",
+  DISCARDED: "Discarded",
+};
+
+const STATUS_ORDER = [
+  "UPLOADED",
+  "ASSIGNED_ANNOTATOR",
+  "ANNOTATION_IN_PROGRESS",
+  "SUBMITTED_FOR_QA",
+  "ASSIGNED_QA",
+  "QA_IN_PROGRESS",
+  "QA_ACCEPTED",
+  "QA_REJECTED",
+  "DELIVERED",
+  "DISCARDED",
+];
+
+const COLUMN_FORMULAS = [
+  {
+    column: "Assigned",
+    formula: "All jobs assigned to this annotator (all statuses except DISCARDED)",
+    statuses: ["UPLOADED", "ASSIGNED_ANNOTATOR", "ANNOTATION_IN_PROGRESS", "SUBMITTED_FOR_QA", "ASSIGNED_QA", "QA_IN_PROGRESS", "QA_ACCEPTED", "QA_REJECTED", "DELIVERED"],
+  },
+  {
+    column: "Completed",
+    formula: "SUBMITTED_FOR_QA + ASSIGNED_QA + QA_IN_PROGRESS + QA_ACCEPTED + DELIVERED",
+    statuses: ["SUBMITTED_FOR_QA", "ASSIGNED_QA", "QA_IN_PROGRESS", "QA_ACCEPTED", "DELIVERED"],
+  },
+  {
+    column: "Pending",
+    formula: "Assigned − Completed",
+  },
+  {
+    column: "In Progress",
+    formula: "ANNOTATION_IN_PROGRESS",
+    statuses: ["ANNOTATION_IN_PROGRESS"],
+  },
+  {
+    column: "QA Rejected",
+    formula: "QA_REJECTED",
+    statuses: ["QA_REJECTED"],
+  },
+  {
+    column: "Delivered",
+    formula: "DELIVERED",
+    statuses: ["DELIVERED"],
+  },
+  {
+    column: "Discarded",
+    formula: "DISCARDED",
+    statuses: ["DISCARDED"],
+  },
+  {
+    column: "Acceptance %",
+    formula: "DELIVERED / (DELIVERED + QA_REJECTED) × 100",
+  },
+];
+
 export function AnnotatorPerformanceTable() {
+  const [selectedAnnotator, setSelectedAnnotator] = useState<AnnotatorPerformance | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [sortKey, setSortKey] = useState<SortKey>("completedJobs");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -63,21 +132,25 @@ export function AnnotatorPerformanceTable() {
   const { data, isLoading } = useAnnotatorPerformance(dateParams);
 
   const totals = useMemo(() => {
-    if (!data) return { assigned: 0, completed: 0, pending: 0, inProgress: 0 };
+    if (!data) return { assigned: 0, completed: 0, pending: 0, inProgress: 0, rejected: 0, discarded: 0 };
     return data.reduce(
       (acc, row) => ({
         assigned: acc.assigned + row.assignedJobs,
         completed: acc.completed + row.completedJobs,
         pending: acc.pending + (row.assignedJobs - row.completedJobs),
         inProgress: acc.inProgress + row.inProgressJobs,
+        rejected: acc.rejected + row.rejectedJobs,
+        discarded: acc.discarded + row.discardedJobs,
       }),
-      { assigned: 0, completed: 0, pending: 0, inProgress: 0 },
+      { assigned: 0, completed: 0, pending: 0, inProgress: 0, rejected: 0, discarded: 0 },
     );
   }, [data]);
 
   function getSortValue(row: AnnotatorPerformance, key: SortKey): number | string | null {
     if (key === "pendingJobs") return row.assignedJobs - row.completedJobs;
-    return row[key] ?? -1;
+    const val = row[key];
+    if (typeof val === "object") return -1;
+    return val ?? -1;
   }
 
   const sorted = useMemo(() => {
@@ -155,6 +228,14 @@ export function AnnotatorPerformanceTable() {
                       <dd className="text-muted-foreground">Jobs currently being annotated (status = ANNOTATION_IN_PROGRESS).</dd>
                     </div>
                     <div>
+                      <dt className="font-semibold">QA Rejected</dt>
+                      <dd className="text-muted-foreground">Jobs rejected by QA reviewer (status = QA_REJECTED).</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold">Discarded</dt>
+                      <dd className="text-muted-foreground">Jobs that were discarded (status = DISCARDED).</dd>
+                    </div>
+                    <div>
                       <dt className="font-semibold">Acceptance %</dt>
                       <dd className="text-muted-foreground">(Delivered Jobs / (Delivered + QA Rejected)) × 100 — percentage of completed jobs that passed QA.</dd>
                     </div>
@@ -176,7 +257,7 @@ export function AnnotatorPerformanceTable() {
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {isLoading ? (
-          <TableSkeleton columns={7} rows={3} />
+          <TableSkeleton columns={9} rows={3} />
         ) : (
           <>
           <Table>
@@ -231,6 +312,26 @@ export function AnnotatorPerformanceTable() {
                 </TableHead>
                 <TableHead
                   className="text-right cursor-pointer select-none"
+                  onClick={() => handleSort("rejectedJobs")}
+                >
+                  <div>
+                    QA Rejected
+                    <SortIndicator col="rejectedJobs" />
+                  </div>
+                  <ColumnTotal value={totals.rejected} />
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer select-none"
+                  onClick={() => handleSort("discardedJobs")}
+                >
+                  <div>
+                    Discarded
+                    <SortIndicator col="discardedJobs" />
+                  </div>
+                  <ColumnTotal value={totals.discarded} />
+                </TableHead>
+                <TableHead
+                  className="text-right cursor-pointer select-none"
                   onClick={() => handleSort("acceptanceRate")}
                 >
                   Acceptance %
@@ -249,7 +350,7 @@ export function AnnotatorPerformanceTable() {
               {sorted.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={9}
                     className="text-center text-muted-foreground h-24"
                   >
                     No annotators found
@@ -257,7 +358,11 @@ export function AnnotatorPerformanceTable() {
                 </TableRow>
               ) : (
                 sorted.slice(page * pageSize, (page + 1) * pageSize).map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedAnnotator(row)}
+                  >
                     <TableCell className="font-medium">{row.name}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {row.assignedJobs}
@@ -270,6 +375,12 @@ export function AnnotatorPerformanceTable() {
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {row.inProgressJobs}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.rejectedJobs}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {row.discardedJobs}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {row.acceptanceRate != null
@@ -353,6 +464,108 @@ export function AnnotatorPerformanceTable() {
           </>
         )}
       </CardContent>
+
+      {/* Row detail dialog */}
+      <Dialog
+        open={selectedAnnotator !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedAnnotator(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-6xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedAnnotator?.name} — Job Details</DialogTitle>
+            <DialogDescription>
+              Breakdown of job statuses and how each table column is derived.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAnnotator && (() => {
+            const bd = selectedAnnotator.statusBreakdown;
+
+            function computeValue(f: typeof COLUMN_FORMULAS[number]): number | string {
+              if (f.statuses) {
+                return f.statuses.reduce((sum, s) => sum + (bd[s] ?? 0), 0);
+              }
+              if (f.column === "Pending") {
+                const assigned = COLUMN_FORMULAS[0].statuses!.reduce((sum, s) => sum + (bd[s] ?? 0), 0);
+                const completed = COLUMN_FORMULAS[1].statuses!.reduce((sum, s) => sum + (bd[s] ?? 0), 0);
+                return assigned - completed;
+              }
+              if (f.column === "Acceptance %") {
+                const delivered = bd["DELIVERED"] ?? 0;
+                const rejected = bd["QA_REJECTED"] ?? 0;
+                const total = delivered + rejected;
+                return total > 0 ? `${((delivered / total) * 100).toFixed(1)}%` : "—";
+              }
+              return "—";
+            }
+
+            return (
+              <div className="space-y-5">
+                {/* Column Formulas */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Column Formulas</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Column</TableHead>
+                        <TableHead>Formula / Statuses</TableHead>
+                        <TableHead className="text-right">Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {COLUMN_FORMULAS.map((f) => (
+                        <TableRow key={f.column}>
+                          <TableCell className="font-medium">{f.column}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {f.formula}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums font-medium">
+                            {computeValue(f)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <Separator />
+
+                {/* Status Distribution */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Job Status Distribution</h4>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {STATUS_ORDER.map((status) => (
+                            <TableHead key={status} className="text-right text-xs whitespace-nowrap">
+                              {STATUS_LABELS[status]}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          {STATUS_ORDER.map((status) => (
+                            <TableCell key={status} className="text-right tabular-nums">
+                              {bd[status] ?? 0}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Total: {STATUS_ORDER.reduce((sum, s) => sum + (bd[s] ?? 0), 0)} jobs
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

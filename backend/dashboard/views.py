@@ -241,6 +241,41 @@ class DashboardViewSet(ViewSet):
                 & submitted_date_q,
                 distinct=True,
             ),
+            discarded_job_count=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.DISCARDED),
+                distinct=True,
+            ),
+            uploaded_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.UPLOADED),
+                distinct=True,
+            ),
+            assigned_annotator_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.ASSIGNED_ANNOTATOR),
+                distinct=True,
+            ),
+            submitted_for_qa_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.SUBMITTED_FOR_QA),
+                distinct=True,
+            ),
+            assigned_qa_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.ASSIGNED_QA),
+                distinct=True,
+            ),
+            qa_in_progress_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.QA_IN_PROGRESS),
+                distinct=True,
+            ),
+            qa_accepted_jobs=Count(
+                "annotator_jobs",
+                filter=Q(annotator_jobs__status=Job.Status.QA_ACCEPTED),
+                distinct=True,
+            ),
         )
 
         result = []
@@ -258,8 +293,23 @@ class DashboardViewSet(ViewSet):
                     "assigned_jobs": user.assigned_jobs,
                     "completed_jobs": user.completed_jobs,
                     "in_progress_jobs": user.in_progress_jobs,
+                    "rejected_jobs": user.rejected_jobs,
+                    "discarded_jobs": user.discarded_job_count,
+                    "delivered_jobs": user.delivered_jobs,
                     "acceptance_rate": acceptance_rate,
                     "avg_annotations_per_job": None,
+                    "status_breakdown": {
+                        "UPLOADED": user.uploaded_jobs,
+                        "ASSIGNED_ANNOTATOR": user.assigned_annotator_jobs,
+                        "ANNOTATION_IN_PROGRESS": user.in_progress_jobs,
+                        "SUBMITTED_FOR_QA": user.submitted_for_qa_jobs,
+                        "ASSIGNED_QA": user.assigned_qa_jobs,
+                        "QA_IN_PROGRESS": user.qa_in_progress_jobs,
+                        "QA_ACCEPTED": user.qa_accepted_jobs,
+                        "QA_REJECTED": user.rejected_jobs,
+                        "DELIVERED": user.delivered_jobs,
+                        "DISCARDED": user.discarded_job_count,
+                    },
                 }
             )
         return Response(result)

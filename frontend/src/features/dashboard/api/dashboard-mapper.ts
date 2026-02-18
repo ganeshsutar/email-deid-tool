@@ -17,8 +17,12 @@ export interface AnnotatorPerformance {
   assignedJobs: number;
   completedJobs: number;
   inProgressJobs: number;
+  rejectedJobs: number;
+  discardedJobs: number;
+  deliveredJobs: number;
   acceptanceRate: number | null;
   avgAnnotationsPerJob: number | null;
+  statusBreakdown: Record<string, number>;
 }
 
 export interface QAPerformance {
@@ -70,8 +74,12 @@ export function mapAnnotatorPerformance(
     assignedJobs: data.assigned_jobs as number,
     completedJobs: data.completed_jobs as number,
     inProgressJobs: data.in_progress_jobs as number,
+    rejectedJobs: data.rejected_jobs as number,
+    discardedJobs: data.discarded_jobs as number,
+    deliveredJobs: data.delivered_jobs as number,
     acceptanceRate: data.acceptance_rate as number | null,
     avgAnnotationsPerJob: data.avg_annotations_per_job as number | null,
+    statusBreakdown: (data.status_breakdown as Record<string, number>) ?? {},
   };
 }
 
