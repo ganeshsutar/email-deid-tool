@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -7,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -36,6 +38,7 @@ function ExportPage() {
   );
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
@@ -49,7 +52,21 @@ function ExportPage() {
   const { data: exportHistory } = useExportHistory({ page: 1 });
   const createExport = useCreateExport();
 
-  const jobs = isAllDatasets ? allDatasetJobs : singleDatasetJobs;
+  const allJobs = isAllDatasets ? allDatasetJobs : singleDatasetJobs;
+
+  const filteredJobs = useMemo(() => {
+    if (!allJobs || !searchQuery.trim()) return allJobs;
+    const q = searchQuery.toLowerCase();
+    return allJobs.filter(
+      (job) =>
+        job.fileName.toLowerCase().includes(q) ||
+        job.annotator?.name.toLowerCase().includes(q) ||
+        job.qaReviewer?.name.toLowerCase().includes(q) ||
+        job.datasetName?.toLowerCase().includes(q),
+    );
+  }, [allJobs, searchQuery]);
+
+  const jobs = filteredJobs;
 
   const totalDeliveredCount = useMemo(
     () => datasets?.reduce((sum, ds) => sum + ds.deliveredCount, 0) ?? 0,
@@ -60,6 +77,12 @@ function ExportPage() {
     setSelectedDatasetId(value);
     setSelectedJobIds(new Set());
     setPreviewJobId(null);
+    setSearchQuery("");
+    setPage(1);
+  }, []);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
     setPage(1);
   }, []);
 
@@ -99,9 +122,14 @@ function ExportPage() {
     );
   }, [jobs, createExport]);
 
-  const jobsDescription = isAllDatasets
-    ? `${jobs?.length ?? 0} delivered job(s) across all datasets`
-    : `${jobs?.length ?? 0} delivered job(s) in this dataset`;
+  const totalJobCount = allJobs?.length ?? 0;
+  const filteredCount = jobs?.length ?? 0;
+  const isFiltered = searchQuery.trim() !== "" && filteredCount !== totalJobCount;
+  const jobsDescription = isFiltered
+    ? `Showing ${filteredCount} of ${totalJobCount} delivered jobs`
+    : isAllDatasets
+      ? `${totalJobCount} delivered job(s) across all datasets`
+      : `${totalJobCount} delivered job(s) in this dataset`;
 
   return (
     <div className="space-y-6" data-testid="export-page">
@@ -164,7 +192,17 @@ function ExportPage() {
               onExportAll={handleExportAll}
             />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by file name, annotator, or reviewer..."
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-8"
+                data-testid="export-search-input"
+              />
+            </div>
             <DeliveredJobsTable
               jobs={jobs}
               selectedIds={selectedJobIds}
