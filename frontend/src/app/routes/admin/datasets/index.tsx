@@ -23,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { downloadDatasetCsv } from "@/features/datasets/api/download-dataset-csv";
 import { useDatasets } from "@/features/datasets/api/get-datasets";
 import { StatusBadge } from "@/features/datasets/components/status-badge";
@@ -120,7 +121,7 @@ function DatasetsPage() {
 
       {isLoading ? (
         <div className="rounded-lg border">
-          <TableSkeleton rows={8} columns={6} />
+          <TableSkeleton rows={8} columns={7} />
         </div>
       ) : (
         <>
@@ -137,6 +138,7 @@ function DatasetsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Files</TableHead>
+                  <TableHead className="w-[180px]">Progress</TableHead>
                   <TableHead>Uploaded By</TableHead>
                   <TableHead>Upload Date</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
@@ -145,7 +147,7 @@ function DatasetsPage() {
               <TableBody>
                 {datasets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center" data-testid="datasets-empty-state">
+                    <TableCell colSpan={8} className="h-24 text-center" data-testid="datasets-empty-state">
                       No datasets found.
                     </TableCell>
                   </TableRow>
@@ -171,6 +173,21 @@ function DatasetsPage() {
                         <StatusBadge status={dataset.status} type="dataset" />
                       </TableCell>
                       <TableCell>{dataset.fileCount}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const total = dataset.fileCount || 1;
+                          const delivered = dataset.statusSummary["DELIVERED"] ?? 0;
+                          const progress = Math.round((delivered / total) * 100);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <Progress value={progress} className="h-2" />
+                              <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">
+                                {progress}%
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell>
                         {dataset.uploadedBy?.name ?? (
                           <span className="text-muted-foreground">&mdash;</span>
