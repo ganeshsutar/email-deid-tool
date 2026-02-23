@@ -94,6 +94,7 @@ const simpleChartConfig = {
 
 export function JobStatusChart() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [stacked, setStacked] = useState(false);
   const { data: datasets } = useDatasetOptions();
 
@@ -108,12 +109,14 @@ export function JobStatusChart() {
   // Simple (non-stacked) chart data
   const simpleData = useMemo(() => {
     if (!statusCounts) return [];
-    return STATUS_ORDER.map((status) => ({
+    const allData = STATUS_ORDER.map((status) => ({
       status: STATUS_LABELS[status] ?? status,
       statusKey: status,
       count: statusCounts[status] ?? 0,
     }));
-  }, [statusCounts]);
+    if (selectedStatuses.length === 0) return allData;
+    return allData.filter((d) => selectedStatuses.includes(d.statusKey));
+  }, [statusCounts, selectedStatuses]);
 
   // Stacked chart data + config
   const { stackedData, stackedConfig, datasetNames } = useMemo(() => {
@@ -129,8 +132,11 @@ export function JobStatusChart() {
       }
     }
 
-    // Build rows: one per status
-    const rows = STATUS_ORDER.map((status) => {
+    // Build rows: one per status (filtered by selectedStatuses)
+    const filteredStatuses = selectedStatuses.length > 0
+      ? STATUS_ORDER.filter((s) => selectedStatuses.includes(s))
+      : STATUS_ORDER;
+    const rows = filteredStatuses.map((status) => {
       const row: Record<string, string | number> = {
         status: STATUS_LABELS[status] ?? status,
         statusKey: status,
@@ -156,7 +162,7 @@ export function JobStatusChart() {
     }
 
     return { stackedData: rows, stackedConfig: config, datasetNames: names };
-  }, [byDatasetCounts]);
+  }, [byDatasetCounts, selectedStatuses]);
 
   const data = stacked ? stackedData : simpleData;
 
@@ -170,6 +176,20 @@ export function JobStatusChart() {
       prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id],
     );
   };
+
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses((prev) =>
+      prev.includes(status) ? prev.filter((v) => v !== status) : [...prev, status],
+    );
+  };
+
+  const statusLabel = useMemo(() => {
+    if (selectedStatuses.length === 0) return "All Statuses";
+    if (selectedStatuses.length === 1) {
+      return STATUS_LABELS[selectedStatuses[0]] ?? selectedStatuses[0];
+    }
+    return `${selectedStatuses.length} Statuses`;
+  }, [selectedStatuses]);
 
   const datasetLabel = useMemo(() => {
     if (selectedIds.length === 0) return "All Datasets";
@@ -225,6 +245,53 @@ export function JobStatusChart() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-[140px] justify-between"
+                >
+                  <span className="truncate">{statusLabel}</span>
+                  <ChevronsUpDown className="ml-1 h-3.5 w-3.5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[200px] p-0" align="end">
+                <div
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent",
+                    selectedStatuses.length === 0 && "text-primary font-medium",
+                  )}
+                  onClick={() => setSelectedStatuses([])}
+                >
+                  {selectedStatuses.length === 0 && (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  <span
+                    className={cn(selectedStatuses.length > 0 && "ml-[22px]")}
+                  >
+                    All Statuses
+                  </span>
+                </div>
+                <div className="border-t" />
+                <ScrollArea className="max-h-[200px]">
+                  {STATUS_ORDER.map((status) => (
+                    <label
+                      key={status}
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent"
+                    >
+                      <Checkbox
+                        checked={selectedStatuses.includes(status)}
+                        onCheckedChange={() => toggleStatus(status)}
+                      />
+                      <span className="text-sm truncate">
+                        {STATUS_LABELS[status] ?? status}
+                      </span>
+                    </label>
+                  ))}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
