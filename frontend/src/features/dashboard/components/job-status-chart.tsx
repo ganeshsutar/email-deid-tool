@@ -274,7 +274,7 @@ export function JobStatusChart() {
                   </span>
                 </div>
                 <div className="border-t" />
-                <ScrollArea className="max-h-[200px]">
+                <ScrollArea className="h-[240px]">
                   {STATUS_ORDER.map((status) => (
                     <label
                       key={status}
