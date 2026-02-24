@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { DataTablePagination } from "@/components/data-table-pagination";
@@ -31,6 +31,31 @@ function AnnotatorDashboardPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearch(searchInput);
+        setPage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Keyboard shortcut
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const { data, isLoading } = useMyAnnotationJobs({
     page,
@@ -74,7 +99,8 @@ function AnnotatorDashboardPage() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by file name..."
+              ref={searchRef}
+              placeholder="Search by file name... (/)"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"

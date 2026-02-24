@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Download, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,10 @@ import { DatasetJobsTable } from "@/features/datasets/components/dataset-jobs-ta
 import { StatusBadge } from "@/features/datasets/components/status-badge";
 import { JobDeleteConfirmDialog } from "@/features/datasets/components/job-delete-confirm-dialog";
 import { JobResetConfirmDialog } from "@/features/datasets/components/job-reset-confirm-dialog";
+import { useJobDialogState } from "@/features/datasets/hooks/use-job-dialog-state";
+import { useJobActionDialogs } from "@/features/datasets/hooks/use-job-action-dialogs";
 import { apiClient } from "@/lib/api-client";
+import { formatRelativeDate, formatAbsoluteDate } from "@/lib/format-date";
 import { JobStatus } from "@/types/enums";
 import { EmailViewer } from "@/components/email-viewer";
 import { RawContentViewer } from "@/components/raw-content-viewer";
@@ -37,11 +40,16 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useVersionHistory } from "@/features/version-history/api/get-version-history";
 import { useJobInfo } from "@/features/version-history/api/get-job-info";
 import { VersionTimeline } from "@/features/version-history/components/version-timeline";
 import { VersionDetailView } from "@/features/version-history/components/version-detail-view";
-import type { AnnotationVersionSummary } from "@/features/version-history/api/history-mapper";
 
 export const Route = createFileRoute("/admin/datasets/$id")({
   loader: async ({ context: { queryClient }, params: { id } }) => {
@@ -61,19 +69,6 @@ function DatasetDetailPage() {
   const [localSearch, setLocalSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
-  const [dialogJobId, setDialogJobId] = useState<string | null>(null);
-  const [dialogTab, setDialogTab] = useState("email");
-  const [detailViewOpen, setDetailViewOpen] = useState(false);
-  const [detailVersion, setDetailVersion] = useState<AnnotationVersionSummary | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
-  const [deleteJobFileName, setDeleteJobFileName] = useState("");
-  const [deleteIsBulk, setDeleteIsBulk] = useState(false);
-  const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [resetJobId, setResetJobId] = useState<string | null>(null);
-  const [resetJobFileName, setResetJobFileName] = useState("");
-  const [resetJobStatus, setResetJobStatus] = useState("");
-  const [resetIsBulk, setResetIsBulk] = useState(false);
 
   const { data: dataset, isLoading: datasetLoading } = useDataset(id);
   const { data: jobsData, isLoading: jobsLoading } = useJobsByDataset({
@@ -83,12 +78,19 @@ function DatasetDetailPage() {
     search,
     status: statusFilter || undefined,
   });
+
+  const jobs = jobsData?.results ?? [];
+
+  // Custom hooks for dialog state management
+  const jobDialog = useJobDialogState(jobs);
+  const actionDialogs = useJobActionDialogs();
+
   const { data: rawContent, isLoading: rawContentLoading } =
-    useJobRawContent(dialogJobId);
+    useJobRawContent(jobDialog.dialogJobId);
   const { data: historyData, isLoading: historyLoading } =
-    useVersionHistory(dialogJobId ?? "");
-  const { data: jobInfo } = useJobInfo(dialogJobId ?? "");
-  const { data: annotatedContent } = useJobAnnotatedContent(dialogJobId);
+    useVersionHistory(jobDialog.dialogJobId ?? "");
+  const { data: jobInfo } = useJobInfo(jobDialog.dialogJobId ?? "");
+  const { data: annotatedContent } = useJobAnnotatedContent(jobDialog.dialogJobId);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -98,19 +100,14 @@ function DatasetDetailPage() {
     return () => clearTimeout(timer);
   }, [localSearch]);
 
+  // Clear selection when page changes
+  useEffect(() => {
+    setSelectedJobIds(new Set());
+  }, [page]);
+
   const handleStatusClick = useCallback((status: string) => {
     setStatusFilter(status);
     setPage(1);
-  }, []);
-
-  const handleJobClick = useCallback((jobId: string) => {
-    setDialogJobId(jobId);
-    setDialogTab("email");
-  }, []);
-
-  const handleHistoryClick = useCallback((jobId: string) => {
-    setDialogJobId(jobId);
-    setDialogTab("history");
   }, []);
 
   const handleViewVersion = useCallback(
@@ -119,11 +116,10 @@ function DatasetDetailPage() {
         (v) => v.id === versionId,
       );
       if (version) {
-        setDetailVersion(version);
-        setDetailViewOpen(true);
+        jobDialog.setDetailVersion(version);
       }
     },
-    [historyData],
+    [historyData, jobDialog],
   );
 
   const handleDownloadEml = useCallback(async (jobId: string, fileName: string) => {
@@ -141,61 +137,21 @@ function DatasetDetailPage() {
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleDeleteClick = useCallback((jobId: string, fileName: string) => {
-    setDeleteJobId(jobId);
-    setDeleteJobFileName(fileName);
-    setDeleteIsBulk(false);
-    setDeleteDialogOpen(true);
-  }, []);
-
-  const handleBulkDelete = useCallback(() => {
-    setDeleteJobId(null);
-    setDeleteJobFileName("");
-    setDeleteIsBulk(true);
-    setDeleteDialogOpen(true);
-  }, []);
-
   const handleDeleteComplete = useCallback(() => {
-    setDeleteDialogOpen(false);
-    setDeleteJobId(null);
-    setDeleteJobFileName("");
-    setDeleteIsBulk(false);
+    actionDialogs.close();
     setSelectedJobIds(new Set());
-  }, []);
-
-  const handleResetClick = useCallback((jobId: string, fileName: string, jobStatus: string) => {
-    setResetJobId(jobId);
-    setResetJobFileName(fileName);
-    setResetJobStatus(jobStatus);
-    setResetIsBulk(false);
-    setResetDialogOpen(true);
-  }, []);
-
-  const handleBulkReset = useCallback(() => {
-    setResetJobId(null);
-    setResetJobFileName("");
-    setResetJobStatus("");
-    setResetIsBulk(true);
-    setResetDialogOpen(true);
-  }, []);
+  }, [actionDialogs]);
 
   const handleResetComplete = useCallback(() => {
-    setResetDialogOpen(false);
-    setResetJobId(null);
-    setResetJobFileName("");
-    setResetJobStatus("");
-    setResetIsBulk(false);
+    actionDialogs.close();
     setSelectedJobIds(new Set());
-  }, []);
+  }, [actionDialogs]);
 
   const handleDialogClose = useCallback((open: boolean) => {
     if (!open) {
-      setDialogJobId(null);
-      setDialogTab("email");
-      setDetailViewOpen(false);
-      setDetailVersion(null);
+      jobDialog.close();
     }
-  }, []);
+  }, [jobDialog]);
 
   const RESETTABLE_STATUSES: JobStatus[] = [
     JobStatus.DELIVERED,
@@ -204,19 +160,32 @@ function DatasetDetailPage() {
     JobStatus.DISCARDED,
   ];
 
-  const jobs = jobsData?.results ?? [];
-
   const resettableSelectedCount = jobs.filter(
     (j) => selectedJobIds.has(j.id) && RESETTABLE_STATUSES.includes(j.status),
   ).length;
 
-  const dialogJob = dialogJobId
-    ? jobs.find((j) => j.id === dialogJobId)
-    : null;
-
   if (datasetLoading) {
     return (
-      <div className="py-8 text-center text-muted-foreground">Loading...</div>
+      <div className="space-y-6" data-testid="dataset-detail-skeleton">
+        <div>
+          <Skeleton className="mb-2 h-4 w-32" />
+          <Skeleton className="h-8 w-64" />
+          <div className="mt-2 flex items-center gap-3">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+          {Array.from({ length: 10 }, (_, i) => (
+            <Skeleton key={i} className="h-16 rounded-lg" />
+          ))}
+        </div>
+        <Skeleton className="h-10 w-64" />
+        <div className="rounded-lg border">
+          <TableSkeleton rows={8} columns={6} />
+        </div>
+      </div>
     );
   }
 
@@ -245,8 +214,15 @@ function DatasetDetailPage() {
               <StatusBadge status={dataset.status} type="dataset" />
               <span>{dataset.fileCount} files</span>
               <span>
-                Uploaded by {dataset.uploadedBy?.name ?? "Unknown"} on{" "}
-                {new Date(dataset.uploadDate).toLocaleDateString()}
+                Uploaded by {dataset.uploadedBy?.name ?? "Unknown"}{" "}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-default">{formatRelativeDate(dataset.uploadDate)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatAbsoluteDate(dataset.uploadDate)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </span>
             </div>
           </div>
@@ -283,10 +259,9 @@ function DatasetDetailPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleBulkReset}
+            onClick={actionDialogs.openBulkReset}
             data-testid="bulk-reset-button"
           >
-            <RotateCcw className="mr-1.5 h-4 w-4" />
             Reset Selected ({resettableSelectedCount})
           </Button>
         )}
@@ -294,10 +269,9 @@ function DatasetDetailPage() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={handleBulkDelete}
+            onClick={actionDialogs.openBulkDelete}
             data-testid="bulk-delete-button"
           >
-            <Trash2 className="mr-1.5 h-4 w-4" />
             Delete Selected ({selectedJobIds.size})
           </Button>
         )}
@@ -314,11 +288,11 @@ function DatasetDetailPage() {
               jobs={jobs}
               selectedIds={selectedJobIds}
               onSelectionChange={setSelectedJobIds}
-              onJobClick={handleJobClick}
-              onHistoryClick={handleHistoryClick}
+              onJobClick={jobDialog.openForJob}
+              onHistoryClick={jobDialog.openForHistory}
               onDownloadClick={handleDownloadEml}
-              onDeleteClick={handleDeleteClick}
-              onResetClick={handleResetClick}
+              onDeleteClick={actionDialogs.openDelete}
+              onResetClick={actionDialogs.openReset}
             />
           </div>
           <div data-testid="dataset-jobs-pagination">
@@ -336,25 +310,25 @@ function DatasetDetailPage() {
         </>
       )}
 
-      <Dialog open={!!dialogJobId} onOpenChange={handleDialogClose}>
+      <Dialog open={!!jobDialog.dialogJobId} onOpenChange={handleDialogClose}>
         <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col" data-testid="email-viewer-dialog">
           <DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <div>
                 <DialogTitle>
-                  {dialogJob?.fileName ?? "Email Preview"}
+                  {jobDialog.dialogJob?.fileName ?? "Email Preview"}
                 </DialogTitle>
                 <DialogDescription>
-                  {dialogJob
-                    ? `Status: ${dialogJob.status.replace(/_/g, " ").toLowerCase()}`
+                  {jobDialog.dialogJob
+                    ? `Status: ${jobDialog.dialogJob.status.replace(/_/g, " ").toLowerCase()}`
                     : "Loading..."}
                 </DialogDescription>
               </div>
-              {dialogJob && (
+              {jobDialog.dialogJob && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handleDownloadEml(dialogJob.id, dialogJob.fileName)}
+                  onClick={() => handleDownloadEml(jobDialog.dialogJob!.id, jobDialog.dialogJob!.fileName)}
                   data-testid="dialog-download-button"
                 >
                   <Download className="h-4 w-4 mr-1.5" />
@@ -371,7 +345,7 @@ function DatasetDetailPage() {
                 ))}
               </div>
             ) : rawContent ? (
-              <Tabs value={dialogTab} onValueChange={setDialogTab}>
+              <Tabs value={jobDialog.dialogTab} onValueChange={jobDialog.setDialogTab}>
                 <TabsList className="w-fit">
                   <TabsTrigger value="email" data-testid="email-tab">Email</TabsTrigger>
                   <TabsTrigger value="raw" data-testid="raw-tab">Raw Content</TabsTrigger>
@@ -444,20 +418,20 @@ function DatasetDetailPage() {
       </Dialog>
 
       <VersionDetailView
-        open={detailViewOpen}
-        onOpenChange={setDetailViewOpen}
-        version={detailVersion}
+        open={jobDialog.detailViewOpen}
+        onOpenChange={jobDialog.setDetailViewOpen}
+        version={jobDialog.detailVersion}
       />
 
       <JobDeleteConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
+        open={actionDialogs.deleteDialogOpen}
+        onOpenChange={(val) => !val && actionDialogs.close()}
         datasetId={id}
-        jobId={deleteIsBulk ? null : deleteJobId}
-        jobFileName={deleteJobFileName}
-        jobIds={deleteIsBulk ? Array.from(selectedJobIds) : undefined}
+        jobId={actionDialogs.deleteIsBulk ? null : actionDialogs.deleteJobId}
+        jobFileName={actionDialogs.deleteJobFileName}
+        jobIds={actionDialogs.deleteIsBulk ? Array.from(selectedJobIds) : undefined}
         hasInProgress={
-          deleteIsBulk
+          actionDialogs.deleteIsBulk
             ? jobs.some(
                 (j) =>
                   selectedJobIds.has(j.id) &&
@@ -466,7 +440,7 @@ function DatasetDetailPage() {
               )
             : jobs.some(
                 (j) =>
-                  j.id === deleteJobId &&
+                  j.id === actionDialogs.deleteJobId &&
                   (j.status === JobStatus.ANNOTATION_IN_PROGRESS ||
                     j.status === JobStatus.QA_IN_PROGRESS),
               )
@@ -475,14 +449,14 @@ function DatasetDetailPage() {
       />
 
       <JobResetConfirmDialog
-        open={resetDialogOpen}
-        onOpenChange={setResetDialogOpen}
+        open={actionDialogs.resetDialogOpen}
+        onOpenChange={(val) => !val && actionDialogs.close()}
         datasetId={id}
-        jobId={resetIsBulk ? null : resetJobId}
-        jobFileName={resetJobFileName}
-        jobStatus={resetJobStatus}
+        jobId={actionDialogs.resetIsBulk ? null : actionDialogs.resetJobId}
+        jobFileName={actionDialogs.resetJobFileName}
+        jobStatus={actionDialogs.resetJobStatus}
         jobIds={
-          resetIsBulk
+          actionDialogs.resetIsBulk
             ? jobs
                 .filter(
                   (j) =>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import {
   LogOut,
   KeyRound,
@@ -37,6 +37,7 @@ import {
 } from "@/lib/theme";
 import { UserAvatar } from "@/components/user-avatar";
 import { AvatarChangeDialog } from "@/components/avatar-change-dialog";
+import { ChangePasswordDialog } from "@/features/auth/components/change-password-dialog";
 
 const STYLE_OPTIONS = Object.values(StylePreset);
 const NEUTRAL_OPTIONS = Object.values(NeutralColor);
@@ -61,6 +62,7 @@ export function UserDropdown() {
     setMode,
   } = useTheme();
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -215,11 +217,9 @@ export function UserDropdown() {
             <UserRoundCog className="mr-2 h-4 w-4" />
             Change Avatar
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/change-password">
-              <KeyRound className="mr-2 h-4 w-4" />
-              Change Password
-            </Link>
+          <DropdownMenuItem onSelect={() => setChangePasswordDialogOpen(true)}>
+            <KeyRound className="mr-2 h-4 w-4" />
+            Change Password
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleLogout} data-testid="sign-out-button">
@@ -229,6 +229,7 @@ export function UserDropdown() {
         </DropdownMenuContent>
       </DropdownMenu>
       <AvatarChangeDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />
+      <ChangePasswordDialog open={changePasswordDialogOpen} onOpenChange={setChangePasswordDialogOpen} />
     </>
   );
 }

@@ -35,8 +35,7 @@ export function useDeleteJob(datasetId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId, "jobs"] });
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId] });
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
       toast.success("Job deleted");
     },
   });
@@ -49,8 +48,7 @@ export function useDeleteJobs(datasetId: string) {
     onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId, "jobs"] });
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId] });
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
       toast.success("Jobs deleted");
     },
   });

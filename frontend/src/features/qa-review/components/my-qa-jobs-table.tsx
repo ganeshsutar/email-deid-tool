@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { differenceInDays } from "date-fns";
 import { ClipboardCheck, History } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { JobStatus } from "@/types/enums";
@@ -64,13 +65,14 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Annotations</TableHead>
           <TableHead>Updated</TableHead>
+          <TableHead>Age</TableHead>
           <TableHead className="w-36">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {jobs.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={7} className="p-0">
+            <TableCell colSpan={8} className="p-0">
               <EmptyState
                 icon={ClipboardCheck}
                 title="No QA jobs"
@@ -94,6 +96,16 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
               <TableCell className="text-right">{job.annotationCount}</TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {new Date(job.updatedAt).toLocaleDateString()}
+              </TableCell>
+              <TableCell className="text-sm tabular-nums">
+                {(() => {
+                  const days = differenceInDays(new Date(), new Date(job.updatedAt));
+                  return (
+                    <span className={days > 3 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                      {days}d
+                    </span>
+                  );
+                })()}
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
@@ -139,7 +151,7 @@ export function MyQAJobsTable({ jobs }: MyQAJobsTableProps) {
           .filter((j) => j.status === JobStatus.DISCARDED && j.discardReason)
           .map((job) => (
             <TableRow key={`${job.id}-discard`} className="bg-slate-50/50 dark:bg-slate-950/10">
-              <TableCell colSpan={7}>
+              <TableCell colSpan={8}>
                 <div className="border-l-2 border-slate-400 pl-3 py-1">
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium text-slate-600">Discard Reason:</span>{" "}

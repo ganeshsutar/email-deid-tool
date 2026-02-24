@@ -40,6 +40,7 @@ import {
 } from "@/lib/theme";
 import { UserAvatar } from "@/components/user-avatar";
 import { AvatarChangeDialog } from "@/components/avatar-change-dialog";
+import { ChangePasswordDialog } from "@/features/auth/components/change-password-dialog";
 
 const STYLE_OPTIONS = Object.values(StylePreset);
 const NEUTRAL_OPTIONS = Object.values(NeutralColor);
@@ -65,6 +66,7 @@ export function SidebarUser() {
     setMode,
   } = useTheme();
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
 
   async function handleLogout() {
     await logout();
@@ -249,11 +251,9 @@ export function SidebarUser() {
                 Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/change-password">
-                <KeyRound className="mr-2 h-4 w-4" />
-                Change Password
-              </Link>
+            <DropdownMenuItem onSelect={() => setChangePasswordDialogOpen(true)}>
+              <KeyRound className="mr-2 h-4 w-4" />
+              Change Password
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
@@ -265,6 +265,7 @@ export function SidebarUser() {
           </DropdownMenuContent>
         </DropdownMenu>
         <AvatarChangeDialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen} />
+        <ChangePasswordDialog open={changePasswordDialogOpen} onOpenChange={setChangePasswordDialogOpen} />
       </SidebarMenuItem>
     </SidebarMenu>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,17 +59,19 @@ function DatasetUploadDialogContent({
   const { data: statusData } = useDatasetStatus(datasetId ?? "", isPolling);
 
   // React to polling results
-  if (statusData && stage === "extracting") {
-    if (statusData.status === DatasetStatus.READY) {
-      setStage("success");
-      setFileCount(statusData.fileCount);
-      setDuplicateCount(statusData.duplicateCount);
-      setExcludedCount(statusData.excludedCount);
-    } else if (statusData.status === DatasetStatus.FAILED) {
-      setStage("error");
-      setError(statusData.errorMessage || "Extraction failed.");
+  useEffect(() => {
+    if (statusData && stage === "extracting") {
+      if (statusData.status === DatasetStatus.READY) {
+        setStage("success");
+        setFileCount(statusData.fileCount);
+        setDuplicateCount(statusData.duplicateCount);
+        setExcludedCount(statusData.excludedCount);
+      } else if (statusData.status === DatasetStatus.FAILED) {
+        setStage("error");
+        setError(statusData.errorMessage || "Extraction failed.");
+      }
     }
-  }
+  }, [statusData, stage]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -113,6 +115,13 @@ function DatasetUploadDialogContent({
           : "Upload failed. Please try again.";
       setError(message);
     }
+  }
+
+  function handleRetry() {
+    setStage("form");
+    setError("");
+    setUploadProgress(0);
+    setDatasetId(null);
   }
 
   if (stage === "success") {
@@ -160,6 +169,9 @@ function DatasetUploadDialogContent({
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
+          </Button>
+          <Button onClick={handleRetry}>
+            Try Again
           </Button>
         </DialogFooter>
       </DialogContent>

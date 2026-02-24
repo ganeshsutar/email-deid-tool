@@ -7,6 +7,7 @@ export interface DatasetsParams {
   page?: number;
   pageSize?: number;
   search?: string;
+  status?: string;
 }
 
 interface DatasetsResponse {
@@ -20,6 +21,7 @@ async function getDatasets(params: DatasetsParams): Promise<DatasetsResponse> {
       page: params.page ?? 1,
       page_size: params.pageSize ?? 20,
       search: params.search || undefined,
+      status: params.status || undefined,
     },
   });
   return {

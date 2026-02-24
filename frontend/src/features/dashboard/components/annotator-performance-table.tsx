@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Info } from "lucide-react";
+import { ChevronRight, Download, Info } from "lucide-react";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { useAnnotatorPerformance } from "../api/get-annotator-performance";
@@ -239,25 +239,54 @@ export function AnnotatorPerformanceTable() {
                       <dt className="font-semibold">Acceptance %</dt>
                       <dd className="text-muted-foreground">(Delivered Jobs / (Delivered + QA Rejected)) × 100 — percentage of completed jobs that passed QA.</dd>
                     </div>
-                    <div>
-                      <dt className="font-semibold">Avg Ann/Job</dt>
-                      <dd className="text-muted-foreground">Average number of annotations per job (not yet implemented).</dd>
-                    </div>
                   </dl>
                 </DialogContent>
               </Dialog>
             </div>
             <CardDescription>Metrics for active annotators</CardDescription>
           </div>
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
+          <div className="flex items-center gap-2">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!data || data.length === 0}
+              onClick={() => {
+                if (!data) return;
+                const headers = ["Name", "Assigned", "Completed", "Pending", "In Progress", "QA Rejected", "Discarded", "Acceptance %"];
+                const rows = data.map((r) => [
+                  r.name,
+                  r.assignedJobs,
+                  r.completedJobs,
+                  r.assignedJobs - r.completedJobs,
+                  r.inProgressJobs,
+                  r.rejectedJobs,
+                  r.discardedJobs,
+                  r.acceptanceRate != null ? `${r.acceptanceRate}%` : "",
+                ].join(","));
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "annotator-performance.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              title="Download CSV"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {isLoading ? (
-          <TableSkeleton columns={9} rows={3} />
+          <TableSkeleton columns={8} rows={3} />
         ) : (
           <>
           <Table>
@@ -337,20 +366,13 @@ export function AnnotatorPerformanceTable() {
                   Acceptance %
                   <SortIndicator col="acceptanceRate" />
                 </TableHead>
-                <TableHead
-                  className="text-right cursor-pointer select-none"
-                  onClick={() => handleSort("avgAnnotationsPerJob")}
-                >
-                  Avg Ann/Job
-                  <SortIndicator col="avgAnnotationsPerJob" />
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     className="text-center text-muted-foreground h-24"
                   >
                     No annotators found
@@ -360,7 +382,7 @@ export function AnnotatorPerformanceTable() {
                 sorted.slice(page * pageSize, (page + 1) * pageSize).map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-muted/50"
                     onClick={() => setSelectedAnnotator(row)}
                   >
                     <TableCell className="font-medium">{row.name}</TableCell>
@@ -383,12 +405,12 @@ export function AnnotatorPerformanceTable() {
                       {row.discardedJobs}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {row.acceptanceRate != null
-                        ? `${row.acceptanceRate}%`
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.avgAnnotationsPerJob ?? "—"}
+                      <div className="flex items-center justify-end gap-1">
+                        {row.acceptanceRate != null
+                          ? `${row.acceptanceRate}%`
+                          : "—"}
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

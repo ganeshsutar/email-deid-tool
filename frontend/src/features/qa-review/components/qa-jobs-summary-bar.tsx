@@ -17,7 +17,7 @@ export function QAJobsSummaryBar({ statusCounts }: QAJobsSummaryBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-5 gap-3" data-testid="qa-summary-bar">
+    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3" data-testid="qa-summary-bar">
       {items.map((item) => (
         <Card key={item.label}>
           <CardContent className="p-3">

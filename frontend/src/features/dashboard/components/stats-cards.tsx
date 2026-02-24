@@ -26,13 +26,21 @@ function StatCard({
   title,
   value,
   icon,
+  tint,
 }: {
   title: string;
   value: ReactNode;
   icon: ReactNode;
+  tint?: "green" | "red";
 }) {
+  const tintClass =
+    tint === "green"
+      ? "from-green-500/5"
+      : tint === "red"
+        ? "from-red-500/5"
+        : "from-primary/5";
   return (
-    <Card>
+    <Card data-slot="card" className={`bg-gradient-to-t ${tintClass} shadow-xs`}>
       <CardHeader>
         <CardDescription>{title}</CardDescription>
         <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
@@ -46,7 +54,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
   return (
     <div className="space-y-4">
       {/* Row 1: Overview */}
-      <div className="grid gap-4 grid-cols-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:shadow-xs">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <StatCard
           title="Total Datasets"
           value={stats.totalDatasets}
@@ -59,20 +67,22 @@ export function StatsCards({ stats }: StatsCardsProps) {
         />
         <StatCard
           title="Delivered"
-          value={stats.totalJobs > 0 ? `${stats.delivered} (${((stats.delivered / stats.totalJobs) * 100).toFixed(2)}%)` : stats.delivered}
+          value={stats.totalJobs > 0 ? `${stats.delivered} (${Math.round((stats.delivered / stats.totalJobs) * 100)}%)` : stats.delivered}
           icon={<PackageCheck className="h-4 w-4 text-muted-foreground" />}
+          tint="green"
         />
         <StatCard
           title="Discarded"
-          value={stats.totalJobs > 0 ? `${stats.discarded} (${((stats.discarded / stats.totalJobs) * 100).toFixed(2)}%)` : stats.discarded}
+          value={stats.totalJobs > 0 ? `${stats.discarded} (${Math.round((stats.discarded / stats.totalJobs) * 100)}%)` : stats.discarded}
           icon={<Ban className="h-4 w-4 text-muted-foreground" />}
+          tint="red"
         />
       </div>
 
       {/* Row 2: Annotation (3) + QA (3) */}
-      <div className="grid gap-4 grid-cols-6 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:shadow-xs">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6">
         {/* Annotation group */}
-        <div className="col-span-3 space-y-2">
+        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Annotation
           </p>
@@ -96,7 +106,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
         </div>
 
         {/* QA group */}
-        <div className="col-span-3 space-y-2">
+        <div className="sm:col-span-1 lg:col-span-3 space-y-2">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             QA Review
           </p>

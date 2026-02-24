@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Database, Download, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { EmptyState } from "@/components/empty-state";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -22,18 +30,92 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import { downloadDatasetCsv } from "@/features/datasets/api/download-dataset-csv";
 import { useDatasets } from "@/features/datasets/api/get-datasets";
 import { StatusBadge } from "@/features/datasets/components/status-badge";
 import { DatasetUploadDialog } from "@/features/datasets/components/dataset-upload-dialog";
 import { DatasetDeleteConfirmDialog } from "@/features/datasets/components/dataset-delete-confirm-dialog";
+import { JobStatus } from "@/types/enums";
+import { formatRelativeDate, formatAbsoluteDate } from "@/lib/format-date";
 import type { DatasetSummary } from "@/features/datasets/api/dataset-mapper";
+
+const STATUS_COLORS: Record<string, string> = {
+  [JobStatus.UPLOADED]: "bg-gray-500",
+  [JobStatus.ASSIGNED_ANNOTATOR]: "bg-blue-500",
+  [JobStatus.ANNOTATION_IN_PROGRESS]: "bg-yellow-500",
+  [JobStatus.SUBMITTED_FOR_QA]: "bg-purple-500",
+  [JobStatus.ASSIGNED_QA]: "bg-indigo-500",
+  [JobStatus.QA_IN_PROGRESS]: "bg-orange-500",
+  [JobStatus.QA_REJECTED]: "bg-red-500",
+  [JobStatus.QA_ACCEPTED]: "bg-green-500",
+  [JobStatus.DELIVERED]: "bg-emerald-500",
+  [JobStatus.DISCARDED]: "bg-slate-500",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  [JobStatus.UPLOADED]: "Uploaded",
+  [JobStatus.ASSIGNED_ANNOTATOR]: "Assigned",
+  [JobStatus.ANNOTATION_IN_PROGRESS]: "Annotating",
+  [JobStatus.SUBMITTED_FOR_QA]: "Submitted for QA",
+  [JobStatus.ASSIGNED_QA]: "QA Assigned",
+  [JobStatus.QA_IN_PROGRESS]: "QA in Progress",
+  [JobStatus.QA_REJECTED]: "Rejected",
+  [JobStatus.QA_ACCEPTED]: "Accepted",
+  [JobStatus.DELIVERED]: "Delivered",
+  [JobStatus.DISCARDED]: "Discarded",
+};
 
 export const Route = createFileRoute("/admin/datasets/")({
   component: DatasetsPage,
 });
+
+function StackedProgressBar({ statusSummary, fileCount }: { statusSummary: Record<string, number>; fileCount: number }) {
+  const total = fileCount || 1;
+  const segments: Array<{ status: string; count: number; pct: number; color: string }> = [];
+
+  for (const [status, color] of Object.entries(STATUS_COLORS)) {
+    const count = statusSummary[status] ?? 0;
+    if (count > 0) {
+      segments.push({ status, count, pct: (count / total) * 100, color });
+    }
+  }
+
+  const tooltipLines = segments.map(
+    (s) => `${STATUS_LABELS[s.status] ?? s.status}: ${s.count}`,
+  );
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+            {segments.map((s) => (
+              <div
+                key={s.status}
+                className={`h-full ${s.color}`}
+                style={{ width: `${s.pct}%` }}
+              />
+            ))}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="text-xs space-y-0.5">
+            {tooltipLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 function DatasetsPage() {
   const navigate = useNavigate();
@@ -41,11 +123,15 @@ function DatasetsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DatasetSummary | null>(null);
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState<
+    Array<{ id: string; name: string; fileCount: number }> | null
+  >(null);
 
-  const { data, isLoading } = useDatasets({ page, pageSize, search });
+  const { data, isLoading } = useDatasets({ page, pageSize, search, status: statusFilter || undefined });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -85,6 +171,15 @@ function DatasetsPage() {
     [navigate],
   );
 
+  function handleBulkDelete() {
+    const targets = datasets
+      .filter((d) => selectedIds.has(d.id))
+      .map((d) => ({ id: d.id, name: d.name, fileCount: d.fileCount }));
+    if (targets.length > 0) {
+      setBulkDeleteTargets(targets);
+    }
+  }
+
   return (
     <div className="space-y-4" data-testid="datasets-page">
       <div className="flex items-center justify-between">
@@ -103,15 +198,30 @@ function DatasetsPage() {
           className="max-w-sm"
           data-testid="datasets-search"
         />
+        <Select
+          value={statusFilter || "all"}
+          onValueChange={(v) => {
+            setStatusFilter(v === "all" ? "" : v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[160px]" data-testid="datasets-status-filter">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="UPLOADING">Uploading</SelectItem>
+            <SelectItem value="EXTRACTING">Extracting</SelectItem>
+            <SelectItem value="READY">Ready</SelectItem>
+            <SelectItem value="FAILED">Failed</SelectItem>
+          </SelectContent>
+        </Select>
         {selectedIds.size > 0 && (
           <Button
             variant="outline"
             size="sm"
             className="text-destructive"
-            onClick={() => {
-              const target = datasets.find((d) => selectedIds.has(d.id));
-              if (target) setDeleteTarget(target);
-            }}
+            onClick={handleBulkDelete}
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete Selected ({selectedIds.size})
@@ -138,8 +248,8 @@ function DatasetsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Files</TableHead>
-                  <TableHead className="w-[180px]">Progress</TableHead>
-                  <TableHead>Uploaded By</TableHead>
+                  <TableHead className="hidden md:table-cell w-[180px]">Progress</TableHead>
+                  <TableHead className="hidden md:table-cell">Uploaded By</TableHead>
                   <TableHead>Upload Date</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
@@ -147,8 +257,20 @@ function DatasetsPage() {
               <TableBody>
                 {datasets.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center" data-testid="datasets-empty-state">
-                      No datasets found.
+                    <TableCell colSpan={8} className="p-0" data-testid="datasets-empty-state">
+                      <EmptyState
+                        icon={Database}
+                        title="No datasets found"
+                        description={!search && !statusFilter ? "Upload your first dataset to get started" : undefined}
+                        action={
+                          !search && !statusFilter ? (
+                            <Button onClick={() => setUploadOpen(true)} size="sm">
+                              <Plus className="mr-2 h-4 w-4" />
+                              Upload Dataset
+                            </Button>
+                          ) : undefined
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -172,29 +294,48 @@ function DatasetsPage() {
                       <TableCell>
                         <StatusBadge status={dataset.status} type="dataset" />
                       </TableCell>
-                      <TableCell>{dataset.fileCount}</TableCell>
                       <TableCell>
-                        {(() => {
-                          const total = dataset.fileCount || 1;
-                          const delivered = dataset.statusSummary["DELIVERED"] ?? 0;
-                          const progress = Math.round((delivered / total) * 100);
-                          return (
-                            <div className="flex items-center gap-2">
-                              <Progress value={progress} className="h-2" />
-                              <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">
-                                {progress}%
-                              </span>
-                            </div>
-                          );
-                        })()}
+                        <span>{dataset.fileCount}</span>
+                        {(dataset.duplicateCount > 0 || dataset.excludedCount > 0) && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="ml-1 text-xs text-muted-foreground cursor-default">*</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="text-xs space-y-0.5">
+                                  {dataset.duplicateCount > 0 && (
+                                    <div>{dataset.duplicateCount} duplicate(s) skipped</div>
+                                  )}
+                                  {dataset.excludedCount > 0 && (
+                                    <div>{dataset.excludedCount} excluded by blocklist</div>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <StackedProgressBar
+                          statusSummary={dataset.statusSummary}
+                          fileCount={dataset.fileCount}
+                        />
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {dataset.uploadedBy?.name ?? (
                           <span className="text-muted-foreground">&mdash;</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {new Date(dataset.uploadDate).toLocaleDateString()}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-default">{formatRelativeDate(dataset.uploadDate)}</span>
+                            </TooltipTrigger>
+                            <TooltipContent>{formatAbsoluteDate(dataset.uploadDate)}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
@@ -203,6 +344,7 @@ function DatasetsPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                aria-label="Download dataset CSV"
                                 data-testid="dataset-download-button"
                               >
                                 <Download className="h-4 w-4" />
@@ -252,6 +394,7 @@ function DatasetsPage() {
                             size="sm"
                             className="text-destructive"
                             onClick={() => setDeleteTarget(dataset)}
+                            aria-label="Delete dataset"
                             data-testid="dataset-delete-button"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -282,6 +425,7 @@ function DatasetsPage() {
 
       <DatasetUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
 
+      {/* Single delete */}
       <DatasetDeleteConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(val) => !val && setDeleteTarget(null)}
@@ -290,6 +434,17 @@ function DatasetsPage() {
         fileCount={deleteTarget?.fileCount ?? 0}
         onComplete={() => {
           setDeleteTarget(null);
+          setSelectedIds(new Set());
+        }}
+      />
+
+      {/* Bulk delete */}
+      <DatasetDeleteConfirmDialog
+        open={!!bulkDeleteTargets}
+        onOpenChange={(val) => !val && setBulkDeleteTargets(null)}
+        datasets={bulkDeleteTargets ?? undefined}
+        onComplete={() => {
+          setBulkDeleteTargets(null);
           setSelectedIds(new Set());
         }}
       />

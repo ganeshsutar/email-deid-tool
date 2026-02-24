@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChangeUserPassword } from "@/features/users/api/change-user-password";
 import type { User } from "@/types/models";
@@ -93,9 +93,8 @@ function ChangePasswordDialogContent({
         )}
         <div className="space-y-2">
           <Label htmlFor="new-password">New Password</Label>
-          <Input
+          <PasswordInput
             id="new-password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter new password"

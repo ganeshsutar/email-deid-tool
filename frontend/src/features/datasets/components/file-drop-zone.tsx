@@ -7,6 +7,7 @@ interface FileDropZoneProps {
   onFileSelect: (file: File) => void;
   onFileRemove: () => void;
   disabled?: boolean;
+  maxSizeMB?: number;
 }
 
 export function FileDropZone({
@@ -14,9 +15,29 @@ export function FileDropZone({
   onFileSelect,
   onFileRemove,
   disabled = false,
+  maxSizeMB = 500,
 }: FileDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+  const validateAndSelect = useCallback(
+    (selectedFile: File) => {
+      if (!selectedFile.name.endsWith(".zip")) {
+        setError("Only .zip files are accepted");
+        return;
+      }
+      if (selectedFile.size > maxSizeBytes) {
+        setError(`File exceeds maximum size of ${maxSizeMB}MB`);
+        return;
+      }
+      setError(null);
+      onFileSelect(selectedFile);
+    },
+    [maxSizeBytes, maxSizeMB, onFileSelect],
+  );
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -38,22 +59,27 @@ export function FileDropZone({
       if (disabled) return;
 
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile && droppedFile.name.endsWith(".zip")) {
-        onFileSelect(droppedFile);
+      if (droppedFile) {
+        validateAndSelect(droppedFile);
       }
     },
-    [disabled, onFileSelect],
+    [disabled, validateAndSelect],
   );
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFile = e.target.files?.[0];
       if (selectedFile) {
-        onFileSelect(selectedFile);
+        validateAndSelect(selectedFile);
       }
     },
-    [onFileSelect],
+    [validateAndSelect],
   );
+
+  const handleRemove = useCallback(() => {
+    setError(null);
+    onFileRemove();
+  }, [onFileRemove]);
 
   if (file) {
     return (
@@ -71,8 +97,9 @@ export function FileDropZone({
           type="button"
           variant="ghost"
           size="icon"
-          onClick={onFileRemove}
+          onClick={handleRemove}
           disabled={disabled}
+          aria-label="Remove file"
         >
           <X className="h-4 w-4" />
         </Button>
@@ -81,33 +108,38 @@ export function FileDropZone({
   }
 
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      data-testid="file-drop-zone"
-      className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
-        isDragging
-          ? "border-primary bg-primary/5"
-          : "border-muted-foreground/25 hover:border-muted-foreground/50"
-      } ${disabled ? "pointer-events-none opacity-50" : ""}`}
-      onClick={() => inputRef.current?.click()}
-    >
-      <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-      <p className="text-sm font-medium">
-        Drag & drop a .zip file here, or click to browse
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Only .zip archives containing .eml files
-      </p>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".zip"
-        className="hidden"
-        onChange={handleInputChange}
-        disabled={disabled}
-      />
+    <div>
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        data-testid="file-drop-zone"
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
+          isDragging
+            ? "border-primary bg-primary/5"
+            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+        } ${disabled ? "pointer-events-none opacity-50" : ""}`}
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+        <p className="text-sm font-medium">
+          Drag & drop a .zip file here, or click to browse
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Only .zip archives containing .eml files (max {maxSizeMB}MB)
+        </p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".zip"
+          className="hidden"
+          onChange={handleInputChange}
+          disabled={disabled}
+        />
+      </div>
+      {error && (
+        <p className="mt-2 text-sm text-destructive" data-testid="file-drop-error">{error}</p>
+      )}
     </div>
   );
 }

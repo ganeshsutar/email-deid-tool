@@ -1,22 +1,45 @@
 import { useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
-import { KeyRound } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useChangePassword } from "@/features/auth/api/change-password";
-import { useUser } from "@/lib/auth";
-import { getDashboardPath } from "@/lib/authorization";
 
-export function ChangePasswordForm() {
-  const navigate = useNavigate();
-  const user = useUser();
-  const changePassword = useChangePassword();
+interface ChangePasswordDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
+export function ChangePasswordDialog({
+  open,
+  onOpenChange,
+}: ChangePasswordDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && (
+        <ChangePasswordDialogContent onOpenChange={onOpenChange} />
+      )}
+    </Dialog>
+  );
+}
+
+function ChangePasswordDialogContent({
+  onOpenChange,
+}: {
+  onOpenChange: (open: boolean) => void;
+}) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const changePassword = useChangePassword();
 
   const passwordsMatch = newPassword === confirmPassword;
   const isDisabled =
@@ -36,7 +59,7 @@ export function ChangePasswordForm() {
 
     try {
       await changePassword.mutateAsync({ new_password: newPassword });
-      navigate({ to: getDashboardPath(user.role) });
+      onOpenChange(false);
     } catch (err: unknown) {
       if (
         err &&
@@ -59,18 +82,13 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <div className="w-full max-w-sm space-y-6">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <KeyRound className="h-6 w-6" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">Change Password</h1>
-        <p className="text-sm text-muted-foreground">
-          {user.forcePasswordChange
-            ? "You must change your password before continuing."
-            : "Enter a new password for your account."}
-        </p>
-      </div>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogDescription>
+          Enter a new password for your account.
+        </DialogDescription>
+      </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <Alert variant="destructive">
@@ -78,9 +96,9 @@ export function ChangePasswordForm() {
           </Alert>
         )}
         <div className="space-y-2">
-          <Label htmlFor="new-password">New Password</Label>
+          <Label htmlFor="dialog-new-password">New Password</Label>
           <PasswordInput
-            id="new-password"
+            id="dialog-new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             autoComplete="new-password"
@@ -88,9 +106,9 @@ export function ChangePasswordForm() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirm-password">Confirm Password</Label>
+          <Label htmlFor="dialog-confirm-password">Confirm Password</Label>
           <PasswordInput
-            id="confirm-password"
+            id="dialog-confirm-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             autoComplete="new-password"
@@ -101,12 +119,19 @@ export function ChangePasswordForm() {
             </p>
           )}
         </div>
-        <Button type="submit" className="w-full" disabled={isDisabled}>
-          {changePassword.isPending
-            ? "Changing password..."
-            : "Change Password"}
-        </Button>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isDisabled}>
+            {changePassword.isPending ? "Changing password..." : "Change Password"}
+          </Button>
+        </DialogFooter>
       </form>
-    </div>
+    </DialogContent>
   );
 }

@@ -35,8 +35,7 @@ export function useResetJob(datasetId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId, "jobs"] });
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId] });
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
       toast.success("Job reset to Uploaded");
     },
   });
@@ -49,8 +48,7 @@ export function useResetJobs(datasetId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId, "jobs"] });
       queryClient.invalidateQueries({ queryKey: ["datasets", datasetId] });
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
       toast.success("Jobs reset to Uploaded");
     },
   });

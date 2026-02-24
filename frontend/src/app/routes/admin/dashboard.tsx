@@ -1,6 +1,8 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Info } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Info, RefreshCw } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { Button } from "@/components/ui/button";
@@ -35,9 +37,25 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 function AdminDashboardPage() {
-  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: stats, isLoading: statsLoading, dataUpdatedAt } = useDashboardStats();
   const { data: recentDatasets, isLoading: datasetsLoading } =
     useRecentDatasets();
+  const queryClient = useQueryClient();
+
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  }, [queryClient]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "r" && !e.metaKey && !e.ctrlKey) {
+        handleRefresh();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleRefresh]);
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -51,6 +69,14 @@ function AdminDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {dataUpdatedAt > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Updated {formatDistanceToNow(dataUpdatedAt, { addSuffix: true })}
+            </span>
+          )}
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={handleRefresh} title="Refresh (r)">
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
           <StatsInfoDialog />
           <QuickActions />
         </div>
@@ -58,13 +84,30 @@ function AdminDashboardPage() {
 
       {/* Stats Cards */}
       {statsLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }, (_, i) => (
-            <div key={i} className="rounded-lg border p-4 space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-8 w-16" />
-            </div>
-          ))}
+        <div className="space-y-4">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="rounded-lg border p-4 space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6">
+            {[0, 1].map((g) => (
+              <div key={g} className="sm:col-span-1 lg:col-span-3 space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <div className="grid gap-4 grid-cols-3">
+                  {Array.from({ length: 3 }, (_, i) => (
+                    <div key={i} className="rounded-lg border p-4 space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-8 w-16" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : stats ? (
         <StatsCards stats={stats} />
@@ -82,7 +125,7 @@ function AdminDashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <TableSkeleton rows={5} columns={6} />
+              <TableSkeleton rows={5} columns={7} />
             </CardContent>
           </Card>
         ) : recentDatasets ? (

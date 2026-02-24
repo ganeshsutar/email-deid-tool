@@ -18,7 +18,7 @@ export function JobsSummaryBar({ statusCounts }: JobsSummaryBarProps) {
   ];
 
   return (
-    <div className="grid grid-cols-6 gap-3" data-testid="jobs-summary-bar">
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3" data-testid="jobs-summary-bar">
       {items.map((item) => (
         <Card key={item.label}>
           <CardContent className="p-3">

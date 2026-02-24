@@ -37,7 +37,7 @@ export function DatasetStatusCards({
   const statuses = Object.keys(STATUS_DISPLAY);
 
   return (
-    <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10" data-testid="dataset-status-cards">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5" data-testid="dataset-status-cards">
       {statuses.map((statusKey) => {
         const count = statusSummary[statusKey] ?? 0;
         const display = STATUS_DISPLAY[statusKey];

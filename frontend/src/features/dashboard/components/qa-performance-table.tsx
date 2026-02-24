@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Info } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { DateRangePicker } from "@/components/date-range-picker";
 import { useQAPerformance } from "../api/get-qa-performance";
@@ -128,8 +128,8 @@ export function QAPerformanceTable() {
     );
   }
 
-  const overviewColCount = 7;
-  const reviewColCount = 6;
+  const overviewColCount = 6;
+  const reviewColCount = 5;
 
   return (
     <Card>
@@ -179,10 +179,6 @@ export function QAPerformanceTable() {
                           <dt className="font-semibold">Acceptance %</dt>
                           <dd className="text-muted-foreground">(Accepted Reviews / (Accepted + Rejected Reviews)) × 100 — percentage of reviews where QA accepted the annotations.</dd>
                         </div>
-                        <div>
-                          <dt className="font-semibold">Avg Ann/Job</dt>
-                          <dd className="text-muted-foreground">Not yet implemented.</dd>
-                        </div>
                       </dl>
                     </div>
                     <div>
@@ -204,10 +200,6 @@ export function QAPerformanceTable() {
                           <dt className="font-semibold">In Review</dt>
                           <dd className="text-muted-foreground">Jobs currently being reviewed.</dd>
                         </div>
-                        <div>
-                          <dt className="font-semibold">Avg Review Time</dt>
-                          <dd className="text-muted-foreground">Not yet implemented.</dd>
-                        </div>
                       </dl>
                     </div>
                   </div>
@@ -221,6 +213,34 @@ export function QAPerformanceTable() {
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
             />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!data || data.length === 0}
+              onClick={() => {
+                if (!data) return;
+                const headers = view === "overview"
+                  ? ["Name", "Assigned", "Completed", "Pending", "In Progress", "Acceptance %"]
+                  : ["Name", "Reviewed", "Accepted", "Rejected", "In Review"];
+                const rows = data.map((r) =>
+                  view === "overview"
+                    ? [r.name, r.assignedJobs, r.completedJobs, r.assignedJobs - r.completedJobs, r.inReviewJobs, r.acceptanceRate != null ? `${r.acceptanceRate}%` : ""].join(",")
+                    : [r.name, r.reviewedJobs, r.acceptedJobs, r.rejectedJobs, r.inReviewJobs].join(","),
+                );
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `qa-performance-${view}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              title="Download CSV"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
             <Tabs value={view} onValueChange={handleViewChange}>
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -294,7 +314,6 @@ export function QAPerformanceTable() {
                       Acceptance %
                       <SortIndicator col="acceptanceRate" />
                     </TableHead>
-                    <TableHead className="text-right">Avg Ann/Job</TableHead>
                   </>
                 ) : (
                   <>
@@ -338,7 +357,6 @@ export function QAPerformanceTable() {
                       </div>
                       <ColumnTotal value={totals.inReview} />
                     </TableHead>
-                    <TableHead className="text-right">Avg Review Time</TableHead>
                   </>
                 )}
               </TableRow>
@@ -376,9 +394,6 @@ export function QAPerformanceTable() {
                             ? `${row.acceptanceRate}%`
                             : "—"}
                         </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          —
-                        </TableCell>
                       </>
                     ) : (
                       <>
@@ -393,9 +408,6 @@ export function QAPerformanceTable() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {row.inReviewJobs}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {row.avgReviewTime ?? "—"}
                         </TableCell>
                       </>
                     )}

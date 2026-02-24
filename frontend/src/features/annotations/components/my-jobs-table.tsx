@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { differenceInDays } from "date-fns";
 import { ClipboardList, History } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { JobStatus } from "@/types/enums";
@@ -72,13 +73,14 @@ export function MyJobsTable({ jobs }: MyJobsTableProps) {
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Annotations</TableHead>
           <TableHead>Updated</TableHead>
+          <TableHead>Age</TableHead>
           <TableHead className="w-40">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {jobs.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={6} className="p-0">
+            <TableCell colSpan={7} className="p-0">
               <EmptyState
                 icon={ClipboardList}
                 title="No jobs assigned"
@@ -101,6 +103,16 @@ export function MyJobsTable({ jobs }: MyJobsTableProps) {
                 <TableCell className="text-right">{job.annotationCount}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(job.updatedAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-sm tabular-nums">
+                  {(() => {
+                    const days = differenceInDays(new Date(), new Date(job.updatedAt));
+                    return (
+                      <span className={days > 3 ? "text-amber-600 font-medium" : "text-muted-foreground"}>
+                        {days}d
+                      </span>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -142,7 +154,7 @@ export function MyJobsTable({ jobs }: MyJobsTableProps) {
           .filter((j) => j.status === JobStatus.QA_REJECTED && j.reworkInfo)
           .map((job) => (
             <TableRow key={`${job.id}-rework`} className="bg-red-50/50 dark:bg-red-950/10">
-              <TableCell colSpan={6}>
+              <TableCell colSpan={7}>
                 <div className="border-l-2 border-red-400 pl-3 py-1">
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium text-red-600">QA Comments:</span>{" "}
@@ -156,7 +168,7 @@ export function MyJobsTable({ jobs }: MyJobsTableProps) {
           .filter((j) => j.status === JobStatus.DISCARDED && j.discardReason)
           .map((job) => (
             <TableRow key={`${job.id}-discard`} className="bg-slate-50/50 dark:bg-slate-950/10">
-              <TableCell colSpan={6}>
+              <TableCell colSpan={7}>
                 <div className="border-l-2 border-slate-400 pl-3 py-1">
                   <p className="text-sm text-muted-foreground">
                     <span className="font-medium text-slate-600">Discard Reason:</span>{" "}

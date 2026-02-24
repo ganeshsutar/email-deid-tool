@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Upload, UserPlus, ShieldCheck, Download } from "lucide-react";
+import { Upload, UserPlus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function QuickActions() {
@@ -14,13 +14,7 @@ export function QuickActions() {
       <Button variant="outline" size="sm" asChild>
         <Link to="/admin/job-assignment">
           <UserPlus className="h-4 w-4 mr-1.5" />
-          Assign Annotation Jobs
-        </Link>
-      </Button>
-      <Button variant="outline" size="sm" asChild>
-        <Link to="/admin/job-assignment">
-          <ShieldCheck className="h-4 w-4 mr-1.5" />
-          Assign QA Jobs
+          Assign Jobs
         </Link>
       </Button>
       <Button variant="outline" size="sm" asChild>

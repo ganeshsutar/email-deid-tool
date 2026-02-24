@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { format } from "date-fns";
 import {
   Card,
   CardContent,
@@ -37,6 +38,7 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Upload Date</TableHead>
+              <TableHead>Uploaded By</TableHead>
               <TableHead className="text-right">Files</TableHead>
               <TableHead className="text-right">Delivered</TableHead>
               <TableHead className="w-[200px]">Progress</TableHead>
@@ -47,7 +49,7 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
             {datasets.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center text-muted-foreground h-24"
                 >
                   No datasets yet
@@ -62,7 +64,10 @@ export function RecentDatasetsTable({ datasets }: RecentDatasetsTableProps) {
                   <TableRow key={ds.id}>
                     <TableCell className="font-medium">{ds.name}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(ds.uploadDate).toLocaleDateString()}
+                      {format(new Date(ds.uploadDate), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {ds.uploadedBy?.name ?? "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {ds.fileCount}

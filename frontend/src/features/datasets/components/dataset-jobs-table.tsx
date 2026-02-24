@@ -1,7 +1,14 @@
-import { Download, Eye, FileText, History, RotateCcw, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, History, MoreHorizontal, RotateCcw, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -18,6 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { JobStatus } from "@/types/enums";
 import type { Job } from "@/types/models";
+import { formatRelativeDate, formatAbsoluteDate } from "@/lib/format-date";
 import { StatusBadge } from "./status-badge";
 
 const RESETTABLE_STATUSES: string[] = [
@@ -84,10 +92,10 @@ export function DatasetJobsTable({
           </TableHead>
           <TableHead>File Name</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Annotator</TableHead>
-          <TableHead>QA</TableHead>
+          <TableHead className="hidden md:table-cell">Annotator</TableHead>
+          <TableHead className="hidden md:table-cell">QA</TableHead>
           <TableHead>Updated</TableHead>
-          <TableHead className="w-36" />
+          <TableHead className="w-20" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -116,99 +124,76 @@ export function DatasetJobsTable({
               <TableCell>
                 <StatusBadge status={job.status} />
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 {job.assignedAnnotator?.name ?? (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">&mdash;</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 {job.assignedQa?.name ?? (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">&mdash;</span>
                 )}
               </TableCell>
               <TableCell>
-                {new Date(job.updatedAt).toLocaleDateString()}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-default">{formatRelativeDate(job.updatedAt)}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatAbsoluteDate(job.updatedAt)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </TableCell>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onJobClick?.(job.id)}
-                          data-testid="job-view-button"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>View Email</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onHistoryClick?.(job.id)}
-                          data-testid="job-history-button"
-                        >
-                          <History className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Version History</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onDownloadClick?.(job.id, job.fileName)}
-                          data-testid="job-download-button"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Download .eml</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {RESETTABLE_STATUSES.includes(job.status) && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onResetClick?.(job.id, job.fileName, job.status)}
-                            data-testid="job-reset-button"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Reset to Uploaded</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => onDeleteClick?.(job.id, job.fileName)}
-                          data-testid="job-delete-button"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Delete Job</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onJobClick?.(job.id)}
+                    aria-label="View email"
+                    data-testid="job-view-button"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="More actions"
+                        data-testid="job-actions-menu"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onHistoryClick?.(job.id)}>
+                        <History className="mr-2 h-4 w-4" />
+                        Version History
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDownloadClick?.(job.id, job.fileName)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download .eml
+                      </DropdownMenuItem>
+                      {RESETTABLE_STATUSES.includes(job.status) && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => onResetClick?.(job.id, job.fileName, job.status)}>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Reset to Uploaded
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDeleteClick?.(job.id, job.fileName)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete Job
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>

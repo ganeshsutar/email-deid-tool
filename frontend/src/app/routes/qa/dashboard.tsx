@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableSkeleton } from "@/components/table-skeleton";
 import { useMyQAJobs } from "@/features/qa-review/api/get-my-qa-jobs";
+import { useBlindReviewSetting } from "@/features/qa-review/api/get-blind-review-setting";
 import { QAJobsSummaryBar } from "@/features/qa-review/components/qa-jobs-summary-bar";
 import { MyQAJobsTable } from "@/features/qa-review/components/my-qa-jobs-table";
 import { JobStatus } from "@/types/enums";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +31,32 @@ function QADashboardPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const { data: blindReview } = useBlindReviewSetting();
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== search) {
+        setSearch(searchInput);
+        setPage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Keyboard shortcut
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const { data, isLoading } = useMyQAJobs({
     page,
@@ -45,7 +73,12 @@ function QADashboardPage() {
 
   return (
     <div className="space-y-4 p-6" data-testid="qa-dashboard">
-      <h1 className="text-xl font-bold tracking-tight lg:text-2xl">QA Review Jobs</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-bold tracking-tight lg:text-2xl">QA Review Jobs</h1>
+        {blindReview?.enabled && (
+          <Badge variant="secondary">Blind Review Active</Badge>
+        )}
+      </div>
 
       {data && (
         <QAJobsSummaryBar statusCounts={data.statusCounts} />
@@ -76,7 +109,8 @@ function QADashboardPage() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by file name..."
+              ref={searchRef}
+              placeholder="Search by file name... (/)"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className="pl-9"
