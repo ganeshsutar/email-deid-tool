@@ -185,7 +185,7 @@ function UserFormDialogContent({
           </RadioGroup>
         </div>
         <DialogFooter className="flex items-center justify-between sm:justify-between">
-          <div>
+          <div className="flex gap-2">
             {isEdit && (
               <Button
                 type="button"
