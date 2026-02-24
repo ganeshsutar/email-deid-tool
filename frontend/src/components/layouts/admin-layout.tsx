@@ -1,4 +1,4 @@
-import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, useMatchRoute } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Database,
@@ -38,6 +38,7 @@ const navItems = [
 
 export function AdminLayout() {
   const matchRoute = useMatchRoute();
+  const { pathname } = useLocation();
 
   return (
     <SidebarProvider>
@@ -103,7 +104,9 @@ export function AdminLayout() {
           <UserDropdown />
         </header>
         <main className="flex-1 p-4 lg:p-6">
-          <Outlet />
+          <div key={pathname} className="animate-in fade-in-0 duration-150">
+            <Outlet />
+          </div>
         </main>
       </div>
     </SidebarProvider>

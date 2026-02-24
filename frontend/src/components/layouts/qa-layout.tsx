@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
@@ -16,6 +16,7 @@ export function QALayout() {
 
 function QALayoutInner() {
   const { breadcrumb, actions } = useHeaderSlot();
+  const { pathname } = useLocation();
 
   // Memoize Outlet so header slot state changes don't re-render the workspace
   const outlet = useMemo(() => <Outlet />, []);
@@ -50,7 +51,9 @@ function QALayoutInner() {
         <UserDropdown />
       </header>
       <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mt-14 pt-14">
-        {outlet}
+        <div key={pathname} className="animate-in fade-in-0 duration-150 h-full">
+          {outlet}
+        </div>
       </main>
     </div>
   );
