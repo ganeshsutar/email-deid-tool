@@ -321,7 +321,7 @@ export function JobStatusChart() {
                   </span>
                 </div>
                 <div className="border-t" />
-                <ScrollArea className="max-h-[200px]">
+                <div className="max-h-[200px] overflow-y-auto">
                   {datasets?.map((d) => (
                     <label
                       key={d.id}
@@ -334,7 +334,7 @@ export function JobStatusChart() {
                       <span className="text-sm truncate">{d.name}</span>
                     </label>
                   ))}
-                </ScrollArea>
+                </div>
               </PopoverContent>
             </Popover>
             <DropdownMenu>
