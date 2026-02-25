@@ -22,6 +22,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+    --font-scale: 1;
     --radius: 0.5rem;
     --background: oklch(1 0 0);
     --foreground: oklch(0.141 0.005 285.823);
@@ -137,6 +138,7 @@
     }
   html {
     overflow: hidden;
+    font-size: calc(16px * var(--font-scale, 1));
     }
   body {
     @apply bg-background text-foreground;

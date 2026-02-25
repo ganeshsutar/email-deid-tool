@@ -26,6 +26,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { UserDropdown } from "./user-dropdown";
+import { ThemeModeToggle } from "@/components/theme-mode-toggle";
 
 const navItems = [
   { title: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
@@ -101,6 +102,7 @@ export function AdminLayout() {
           <Separator orientation="vertical" className="h-6" />
           <DynamicBreadcrumb />
           <div className="flex-1" />
+          <ThemeModeToggle />
           <UserDropdown />
         </header>
         <main className="flex-1 p-4 lg:p-6">

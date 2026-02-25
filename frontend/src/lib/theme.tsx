@@ -51,8 +51,23 @@ export type BaseColor = (typeof BaseColor)[keyof typeof BaseColor];
 export const RADIUS_OPTIONS = [0, 0.3, 0.5, 0.75, 1.0] as const;
 export type RadiusOption = (typeof RADIUS_OPTIONS)[number];
 
+export const FontSize = {
+  SMALL: "small",
+  DEFAULT: "default",
+  LARGE: "large",
+  X_LARGE: "x-large",
+} as const;
+export type FontSize = (typeof FontSize)[keyof typeof FontSize];
+
+export const FONT_SIZE_SCALE: Record<FontSize, number> = {
+  small: 0.875,
+  default: 1,
+  large: 1.125,
+  "x-large": 1.25,
+};
+
 // Font family per style preset
-const STYLE_FONTS: Record<StylePreset, string> = {
+export const STYLE_FONTS: Record<StylePreset, string> = {
   vega: "'Geist Sans', 'Geist', ui-sans-serif, system-ui, sans-serif",
   nova: "'Inter', ui-sans-serif, system-ui, sans-serif",
   maia: "'Nunito Sans', ui-sans-serif, system-ui, sans-serif",
@@ -686,12 +701,13 @@ export const BASE_SWATCH_COLORS: Record<BaseColor, string> = {
 // Context
 // ---------------------------------------------------------------------------
 
-interface ThemeConfig {
+export interface ThemeConfig {
   style: StylePreset;
   neutralColor: NeutralColor;
   baseColor: BaseColor;
   radius: number;
   mode: ThemeMode;
+  fontSize: FontSize;
 }
 
 interface ThemeContextValue {
@@ -701,6 +717,8 @@ interface ThemeContextValue {
   setBaseColor: (color: BaseColor) => void;
   setRadius: (radius: number) => void;
   setMode: (mode: ThemeMode) => void;
+  setFontSize: (fontSize: FontSize) => void;
+  applyPreset: (config: Omit<ThemeConfig, "fontSize">) => void;
   resetTheme: () => void;
   /** The resolved mode (never "system") — always "light" or "dark" */
   resolvedMode: "light" | "dark";
@@ -714,6 +732,7 @@ const DEFAULT_CONFIG: ThemeConfig = {
   baseColor: "blue",
   radius: 0.5,
   mode: "light",
+  fontSize: "default",
 };
 
 function loadConfig(): ThemeConfig {
@@ -727,6 +746,7 @@ function loadConfig(): ThemeConfig {
         baseColor: parsed.baseColor ?? DEFAULT_CONFIG.baseColor,
         radius: parsed.radius ?? DEFAULT_CONFIG.radius,
         mode: parsed.mode ?? DEFAULT_CONFIG.mode,
+        fontSize: (parsed as Partial<ThemeConfig>).fontSize ?? DEFAULT_CONFIG.fontSize,
       };
     }
   } catch {
@@ -779,6 +799,7 @@ function applyTheme(config: ThemeConfig, resolved: "light" | "dark") {
 
   root.style.setProperty("--radius", `${config.radius}rem`);
   root.style.setProperty("--font-sans", STYLE_FONTS[config.style]);
+  root.style.setProperty("--font-scale", String(FONT_SIZE_SCALE[config.fontSize]));
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -835,6 +856,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setConfig((prev) => ({ ...prev, mode }));
   }, []);
 
+  const setFontSize = useCallback((fontSize: FontSize) => {
+    setConfig((prev) => ({ ...prev, fontSize }));
+  }, []);
+
+  const applyPreset = useCallback((preset: Omit<ThemeConfig, "fontSize">) => {
+    setConfig((prev) => ({ ...prev, ...preset }));
+  }, []);
+
   const resetTheme = useCallback(() => {
     setConfig(DEFAULT_CONFIG);
   }, []);
@@ -848,6 +877,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setBaseColor,
         setRadius,
         setMode,
+        setFontSize,
+        applyPreset,
         resetTheme,
         resolvedMode,
       }}

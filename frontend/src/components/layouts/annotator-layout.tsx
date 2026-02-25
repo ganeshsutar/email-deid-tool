@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { DynamicBreadcrumb } from "@/components/dynamic-breadcrumb";
 import { HeaderSlotProvider, useHeaderSlot } from "@/lib/header-slot";
 import { UserDropdown } from "./user-dropdown";
+import { ThemeModeToggle } from "@/components/theme-mode-toggle";
 
 export function AnnotatorLayout() {
   return (
@@ -48,6 +49,7 @@ function AnnotatorLayoutInner() {
             <Separator orientation="vertical" className="mx-4 h-6" />
           </>
         )}
+        <ThemeModeToggle />
         <UserDropdown />
       </header>
       <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mt-14 pt-14">
