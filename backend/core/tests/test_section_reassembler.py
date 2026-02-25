@@ -129,9 +129,131 @@ class TestDeidentifyAndReassemble(SimpleTestCase):
         anns_by_section = group_annotations_by_section(anns)
 
         result = deidentify_and_reassemble(raw, sections, anns_by_section)
-        msg = email.message_from_string(result)
-        self.assertIn("[email_1]", msg.get("From", ""))
+        self.assertIn("[email_1]", result)
+        self.assertNotIn("alice@example.com", result)
 
+    def test_header_continuation_line(self):
+        """PII on a continuation line (indented) in a multi-line header."""
+        raw = (
+            "Received: from mail.example.com\r\n"
+            "\tby mx.google.com\r\n"
+            "\tfor <danielle@gmail.com>;\r\n"
+            "\tMon, 1 Jan 2024 00:00:00 +0000\r\n"
+            "Content-Type: text/plain; charset=utf-8\r\n"
+            "\r\n"
+            "Body text\r\n"
+        )
+        sections = extract_sections(raw)
+        header_content = sections[0].content
+        target = "danielle@gmail.com"
+        start = header_content.find(target)
+        end = start + len(target)
+        anns = [FakeAnnotation(0, start, end, "[email_1]")]
+        anns_by_section = group_annotations_by_section(anns)
+
+        result = deidentify_and_reassemble(raw, sections, anns_by_section)
+        self.assertIn("[email_1]", result)
+        self.assertNotIn("danielle@gmail.com", result)
+
+    def test_header_duplicate_headers(self):
+        """PII in duplicate headers (e.g. multiple Received: headers)."""
+        raw = (
+            "Received: from server1.com by mx.example.com for <alice@test.com>\r\n"
+            "Received: from server2.com by mx.example.com for <bob@test.com>\r\n"
+            "Content-Type: text/plain; charset=utf-8\r\n"
+            "\r\n"
+            "Body\r\n"
+        )
+        sections = extract_sections(raw)
+        header_content = sections[0].content
+        # Annotate both emails
+        alice_start = header_content.find("alice@test.com")
+        bob_start = header_content.find("bob@test.com")
+        anns = [
+            FakeAnnotation(0, alice_start, alice_start + len("alice@test.com"), "[email_1]"),
+            FakeAnnotation(0, bob_start, bob_start + len("bob@test.com"), "[email_2]"),
+        ]
+        anns_by_section = group_annotations_by_section(anns)
+
+        result = deidentify_and_reassemble(raw, sections, anns_by_section)
+        self.assertIn("[email_1]", result)
+        self.assertIn("[email_2]", result)
+        self.assertNotIn("alice@test.com", result)
+        self.assertNotIn("bob@test.com", result)
+
+    def test_header_multiline_value(self):
+        """PII buried in a multi-line header continuation."""
+        raw = (
+            "ARC-Authentication-Results: i=1; mx.google.com;\r\n"
+            "       dkim=pass header.i=@example.com header.s=sel1\r\n"
+            "       header.b=AbCdEfGh;\r\n"
+            "       spf=pass (google.com: domain of admin@company.org)\r\n"
+            "Content-Type: text/plain; charset=utf-8\r\n"
+            "\r\n"
+            "Body text\r\n"
+        )
+        sections = extract_sections(raw)
+        header_content = sections[0].content
+        target = "admin@company.org"
+        start = header_content.find(target)
+        end = start + len(target)
+        anns = [FakeAnnotation(0, start, end, "[email_1]")]
+        anns_by_section = group_annotations_by_section(anns)
+
+        result = deidentify_and_reassemble(raw, sections, anns_by_section)
+        self.assertIn("[email_1]", result)
+        self.assertNotIn("admin@company.org", result)
+
+    def test_header_and_body_combined(self):
+        """Annotations in both headers and body are replaced."""
+        raw = (
+            "From: alice@example.com\r\n"
+            "To: bob@example.com\r\n"
+            "Subject: Meeting\r\n"
+            "Content-Type: text/plain; charset=utf-8\r\n"
+            "\r\n"
+            "Hi Bob, reach me at alice@example.com or 555-0100.\r\n"
+        )
+        sections = extract_sections(raw)
+        header_content = sections[0].content
+        body_content = sections[1].content
+
+        h_start = header_content.find("alice@example.com")
+        b_email_start = body_content.find("alice@example.com")
+        b_phone_start = body_content.find("555-0100")
+
+        anns = [
+            FakeAnnotation(0, h_start, h_start + len("alice@example.com"), "[email_1]"),
+            FakeAnnotation(1, b_email_start, b_email_start + len("alice@example.com"), "[email_2]"),
+            FakeAnnotation(1, b_phone_start, b_phone_start + len("555-0100"), "[phone_1]"),
+        ]
+        anns_by_section = group_annotations_by_section(anns)
+
+        result = deidentify_and_reassemble(raw, sections, anns_by_section)
+        self.assertIn("[email_1]", result)
+        self.assertIn("[email_2]", result)
+        self.assertIn("[phone_1]", result)
+        self.assertNotIn("555-0100", result)
+
+    def test_header_lf_only_line_endings(self):
+        """Headers with LF-only line endings are handled correctly."""
+        raw = (
+            "From: alice@example.com\n"
+            "To: bob@example.com\n"
+            "Content-Type: text/plain; charset=utf-8\n"
+            "\n"
+            "Body text\n"
+        )
+        sections = extract_sections(raw)
+        header_content = sections[0].content
+        start = header_content.find("alice@example.com")
+        end = start + len("alice@example.com")
+        anns = [FakeAnnotation(0, start, end, "[email_1]")]
+        anns_by_section = group_annotations_by_section(anns)
+
+        result = deidentify_and_reassemble(raw, sections, anns_by_section)
+        self.assertIn("[email_1]", result)
+        self.assertNotIn("alice@example.com", result)
 
     def test_cte_header_position_preserved(self):
         """CTE header should stay in its original position, not move to the end."""
