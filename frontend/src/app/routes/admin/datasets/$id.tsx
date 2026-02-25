@@ -311,7 +311,7 @@ function DatasetDetailPage() {
       )}
 
       <Dialog open={!!jobDialog.dialogJobId} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col" data-testid="email-viewer-dialog">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] flex flex-col" data-testid="email-viewer-dialog">
           <DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <div>

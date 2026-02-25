@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { getSelectionOffsets, splitTextAtAnnotations } from "@/lib/offset-utils";
 import type { EmailSection, WorkspaceAnnotation } from "@/types/models";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
@@ -154,7 +154,7 @@ export function SectionedContentViewer({
 
   return (
     <div className="flex h-full flex-col" data-testid="sectioned-content-viewer">
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea className="flex-1 min-h-0" scrollbars={wordWrap ? "vertical" : "both"}>
         {sections.map((section) => {
           const sectionAnns = annotationsBySection.get(section.index) ?? [];
           const isCollapsed = collapsedSections.has(section.index);
@@ -174,7 +174,6 @@ export function SectionedContentViewer({
             />
           );
         })}
-        {!wordWrap && <ScrollBar orientation="horizontal" />}
       </ScrollArea>
     </div>
   );
