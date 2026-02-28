@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 import zipfile
@@ -253,15 +254,41 @@ class ExportViewSet(ViewSet):
         zip_path = os.path.join(export_dir, "export.zip")
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            annotations_map = {}
+
             for job in jobs:
                 if not job.eml_content:
                     continue
 
-                deidentified, _ = self._deidentify_job(job)
+                deidentified, annotations = self._deidentify_job(job)
 
                 short_id = str(job.id)[:8]
-                out_name = f"REDACTED_{short_id}_{job.file_name}"
+                file_key = f"{short_id}_{job.file_name}"
+                out_name = f"REDACTED_{file_key}"
                 zf.writestr(out_name, deidentified)
+
+                annotations_map[file_key] = [
+                    {
+                        "id": str(ann.id),
+                        "class_name": ann.class_name,
+                        "class_display_label": (
+                            ann.annotation_class.display_label
+                            if ann.annotation_class
+                            else ann.class_name
+                        ),
+                        "tag": ann.tag,
+                        "section_index": ann.section_index,
+                        "start_offset": ann.start_offset,
+                        "end_offset": ann.end_offset,
+                        "original_text": ann.original_text,
+                    }
+                    for ann in annotations
+                ]
+
+            zf.writestr(
+                "annotations.json",
+                json.dumps(annotations_map, indent=2, ensure_ascii=False),
+            )
 
         file_size = os.path.getsize(zip_path)
 

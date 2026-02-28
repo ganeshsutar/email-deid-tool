@@ -6,6 +6,11 @@ export interface TextSegment {
   isHighlight: boolean;
 }
 
+/** Count Unicode code points (not UTF-16 code units). */
+function codePointLength(str: string): number {
+  return Array.from(str).length;
+}
+
 export function getSelectionOffsets(
   container: HTMLElement,
 ): { text: string; start: number; end: number } | null {
@@ -28,8 +33,8 @@ export function getSelectionOffsets(
   preSelectionRange.selectNodeContents(container);
   preSelectionRange.setEnd(range.startContainer, range.startOffset);
 
-  const start = preSelectionRange.toString().length;
-  const end = start + text.length;
+  const start = codePointLength(preSelectionRange.toString());
+  const end = start + codePointLength(text);
 
   return { text, start, end };
 }
@@ -58,23 +63,25 @@ export function splitTextAtAnnotations(
     }
   }
 
+  // Convert to code-point array once for accurate slicing
+  const codePoints = Array.from(text);
   const segments: TextSegment[] = [];
   let cursor = 0;
 
   for (const ann of nonOverlapping) {
     const start = Math.max(ann.startOffset, 0);
-    const end = Math.min(ann.endOffset, text.length);
+    const end = Math.min(ann.endOffset, codePoints.length);
 
     if (start > cursor) {
       segments.push({
-        text: text.slice(cursor, start),
+        text: codePoints.slice(cursor, start).join(""),
         isHighlight: false,
       });
     }
 
     if (start < end) {
       segments.push({
-        text: text.slice(start, end),
+        text: codePoints.slice(start, end).join(""),
         annotation: ann,
         isHighlight: true,
       });
@@ -83,9 +90,9 @@ export function splitTextAtAnnotations(
     cursor = end;
   }
 
-  if (cursor < text.length) {
+  if (cursor < codePoints.length) {
     segments.push({
-      text: text.slice(cursor),
+      text: codePoints.slice(cursor).join(""),
       isHighlight: false,
     });
   }
