@@ -50,6 +50,11 @@ def _try_fix(section_content, start_offset, end_offset, original_text):
     Returns (new_start, new_end, was_changed) if successful,
     or None if conversion or verification failed.
     """
+    # If current offsets already extract the correct text, no conversion needed.
+    # This handles both "never broken" and "previously fixed" cases.
+    if section_content[start_offset:end_offset] == original_text:
+        return (start_offset, end_offset, False)
+
     new_start = _utf16_offset_to_codepoint(section_content, start_offset)
     new_end = _utf16_offset_to_codepoint(section_content, end_offset)
 
