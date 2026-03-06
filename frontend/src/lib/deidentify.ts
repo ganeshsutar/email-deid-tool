@@ -12,17 +12,19 @@ export function deidentify(
   const sorted = [...annotations].sort(
     (a, b) => b.startOffset - a.startOffset,
   );
-  let content = rawContent;
+  // Use codepoint array for correct offset handling with emojis/surrogate pairs
+  let codePoints = Array.from(rawContent);
   for (const ann of sorted) {
     const tag = ann.tag || ann.className;
     // tag already includes brackets like [email_1], use as-is
     const replacement = tag.startsWith("[") && tag.endsWith("]") ? tag : `[${tag}]`;
-    content =
-      content.slice(0, ann.startOffset) +
-      replacement +
-      content.slice(ann.endOffset);
+    codePoints = [
+      ...codePoints.slice(0, ann.startOffset),
+      ...Array.from(replacement),
+      ...codePoints.slice(ann.endOffset),
+    ];
   }
-  return content;
+  return codePoints.join("");
 }
 
 /**
