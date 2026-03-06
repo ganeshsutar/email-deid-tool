@@ -266,7 +266,7 @@ function SectionBlock({
           role="document"
           aria-label={`${section.label} content`}
           className="email-line-viewer font-mono text-sm leading-loose py-2 pr-2"
-          style={{ whiteSpace: wordWrap ? "pre-wrap" : "pre" }}
+          style={{ whiteSpace: wordWrap ? "pre-wrap" : "pre", wordBreak: wordWrap ? "break-all" : undefined }}
           onMouseUp={readOnly ? undefined : onMouseUp}
         >
           {lineSegments.map((lineSegs, lineIdx) => (

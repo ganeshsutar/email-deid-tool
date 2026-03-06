@@ -191,7 +191,6 @@
    textContent. Keeps getSelectionOffsets() offsets correct. */
 .email-line-viewer {
   padding-left: 4rem;
-  white-space: pre;
 }
 
 .email-line {

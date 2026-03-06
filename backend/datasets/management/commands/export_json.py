@@ -38,11 +38,15 @@ class Command(BaseCommand):
         pretty = options["pretty"]
 
         # Build queryset
-        queryset = Job.objects.filter(
-            status=Job.Status.DELIVERED,
-        ).exclude(
-            eml_content_compressed=b"",
-        ).select_related("dataset")
+        queryset = (
+            Job.objects.filter(
+                status=Job.Status.DELIVERED,
+            )
+            .exclude(
+                eml_content_compressed=b"",
+            )
+            .select_related("dataset")
+        )
 
         if dataset_id:
             try:
@@ -71,11 +75,9 @@ class Command(BaseCommand):
 
             annotations = []
             if latest_version:
-                anns = (
-                    latest_version.annotations
-                    .select_related("annotation_class")
-                    .order_by("section_index", "start_offset")
-                )
+                anns = latest_version.annotations.select_related(
+                    "annotation_class"
+                ).order_by("section_index", "start_offset")
                 annotations = [
                     {
                         "id": str(ann.id),
@@ -94,14 +96,17 @@ class Command(BaseCommand):
                     for ann in anns
                 ]
 
-            email_content = base64.b64encode(
-                job.eml_content.encode("utf-8")
-            ).decode("ascii")
+            email_content = base64.b64encode(job.eml_content.encode("utf-8")).decode(
+                "ascii"
+            )
 
-            result.append({
-                "emailContent": email_content,
-                "annotations": annotations,
-            })
+            result.append(
+                {
+                    "filename": job.file_name,
+                    "emailContent": email_content,
+                    "annotations": annotations,
+                }
+            )
 
             exported += 1
             if exported % 100 == 0:

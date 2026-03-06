@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Ban, Check, Save, WrapText, X, XCircle } from "lucide-react";
+import { Ban, Check, Save, X, XCircle } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useAnnotationClasses } from "@/features/annotation-classes/api/get-annotation-classes";
 import { scrollToAnnotation } from "@/lib/offset-utils";
 import { AnnotationQAStatus, JobStatus } from "@/types/enums";
@@ -21,13 +23,6 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Toggle } from "@/components/ui/toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ClassSelectionPopup } from "@/components/class-selection-popup";
 import { EmailPreview } from "@/components/email-preview";
 import { EmailViewer } from "@/components/email-viewer";
@@ -52,7 +47,7 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
   const review = useQAReview(jobId);
   const { data: annotationClasses } = useAnnotationClasses();
   const { data: discardReasonsData } = useDiscardReasons();
-  const [wordWrap, setWordWrap] = useState(false);
+  const [wordWrap, setWordWrap] = useState(true);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
@@ -340,22 +335,10 @@ export function QAReviewWorkspace({ jobId }: QAReviewWorkspaceProps) {
                   </TabsTrigger>
                   <TabsTrigger value="email">Email</TabsTrigger>
                 </TabsList>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Toggle
-                        size="sm"
-                        pressed={wordWrap}
-                        onPressedChange={setWordWrap}
-                        aria-label="Toggle word wrap"
-                        className="h-8 w-8"
-                      >
-                        <WrapText className="h-4 w-4" />
-                      </Toggle>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">Toggle word wrap</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="flex items-center gap-1.5">
+                  <Switch id="word-wrap-qa" size="sm" checked={wordWrap} onCheckedChange={setWordWrap} />
+                  <Label htmlFor="word-wrap-qa" className="text-xs cursor-pointer">Wrap</Label>
+                </div>
               </div>
               <TabsContent value="preview" className="flex-1 min-h-0 m-0 overflow-auto">
                 <EmailPreview rawContent={review.rawContent} sections={review.sections} annotations={review.currentAnnotations} />
