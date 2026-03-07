@@ -127,8 +127,12 @@ export function SectionedContentViewer({
           key={idx}
           data-annotation-id={ann.id}
           style={{
-            backgroundColor: ann.classColor + (isSelected ? "" : "66"),
-            outline: isSelected ? `2px solid ${ann.classColor}` : undefined,
+            backgroundColor: isSelected
+              ? "rgba(239, 68, 68, 0.25)"
+              : ann.classColor + "66",
+            outline: isSelected
+              ? "2px solid rgb(239, 68, 68)"
+              : undefined,
           }}
           className="cursor-pointer rounded-sm relative px-1 py-0.5"
           title={`${ann.classDisplayLabel}: ${ann.tag}`}
@@ -139,7 +143,9 @@ export function SectionedContentViewer({
           <span
             className="text-[10px] uppercase leading-none rounded-full px-1.5 py-0.5 ml-1 inline-block align-middle font-semibold"
             style={{
-              backgroundColor: ann.classColor + "CC",
+              backgroundColor: isSelected
+                ? "rgb(59, 130, 246)"
+                : ann.classColor + "CC",
               color: "#fff",
             }}
             data-annotation-badge={ann.tag}
