@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { ArrowUp, ArrowDown, Pencil, Trash2 } from "lucide-react";
-import type { WorkspaceAnnotation } from "@/types/models";
+import type { EmailSection, WorkspaceAnnotation } from "@/types/models";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -27,6 +28,7 @@ const STRING_KEYS = new Set<SortKey>(["tag", "classDisplayLabel", "originalText"
 
 interface AnnotationsListTabProps {
   annotations: WorkspaceAnnotation[];
+  sections?: EmailSection[];
   onAnnotationClick: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -35,6 +37,7 @@ interface AnnotationsListTabProps {
 
 export function AnnotationsListTab({
   annotations,
+  sections,
   onAnnotationClick,
   onEdit,
   onDelete,
@@ -42,6 +45,16 @@ export function AnnotationsListTab({
 }: AnnotationsListTabProps) {
   const [sortKey, setSortKey] = useState<SortKey>("tag");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const sectionLabelMap = useMemo(() => {
+    const map = new Map<number, string>();
+    if (sections) {
+      for (const s of sections) {
+        map.set(s.index, s.type.replace("TEXT_", "").toLowerCase());
+      }
+    }
+    return map;
+  }, [sections]);
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -128,13 +141,25 @@ export function AnnotationsListTab({
                     </div>
                   </TableCell>
                   <TableCell
-                    className="font-mono text-xs truncate max-w-[150px]"
+                    className="font-mono text-xs max-w-[150px]"
                     title={ann.originalText}
                   >
-                    {ann.originalText}
+                    <div className="flex items-center gap-1">
+                      {/^\s/.test(ann.originalText) && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0 text-muted-foreground">
+                          ␣
+                        </Badge>
+                      )}
+                      <span className="truncate">{ann.originalText}</span>
+                      {/\s$/.test(ann.originalText) && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 shrink-0 text-muted-foreground">
+                          ␣
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
-                    {ann.sectionIndex}
+                    {sectionLabelMap.get(ann.sectionIndex) ?? ann.sectionIndex}
                   </TableCell>
                   <TableCell className="text-right text-xs">
                     {ann.startOffset}

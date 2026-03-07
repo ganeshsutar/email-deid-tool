@@ -271,7 +271,7 @@ function SectionBlock({
           ref={setRef}
           role="document"
           aria-label={`${section.label} content`}
-          className="email-line-viewer font-mono text-sm leading-loose py-2 pr-2"
+          className="email-line-viewer font-mono text-sm leading-loose py-4 pr-4"
           style={{ whiteSpace: wordWrap ? "pre-wrap" : "pre", wordBreak: wordWrap ? "break-all" : undefined }}
           onMouseUp={readOnly ? undefined : onMouseUp}
         >

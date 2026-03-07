@@ -292,6 +292,7 @@ export function AnnotationWorkspace({ jobId }: AnnotationWorkspaceProps) {
               <TabsContent value="annotations" className="flex-1 min-h-0 m-0">
                 <AnnotationsListTab
                   annotations={workspace.annotations}
+                  sections={workspace.sections}
                   onAnnotationClick={handleAnnotationClick}
                   onEdit={handleEdit}
                   onDelete={workspace.deleteAnnotation}
